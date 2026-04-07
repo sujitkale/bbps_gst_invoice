@@ -641,12 +641,28 @@ def backup():
 
 @app.route('/api/restore', methods=['POST'])
 def restore():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-    try:
-        data = json.loads(request.files['file'].read().decode('utf-8'))
-    except Exception as e:
-        return jsonify({'error': f'Invalid JSON: {e}'}), 400
+    # Support both FormData (legacy) and raw JSON body
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+    elif 'file' in request.files:
+        try:
+            data = json.loads(request.files['file'].read().decode('utf-8'))
+        except Exception as e:
+            return jsonify({'error': f'Invalid JSON: {e}'}), 400
+    else:
+        return jsonify({'error': 'No data provided'}), 400
+
+    return _do_restore(data)
+
+@app.route('/api/restore-json', methods=['POST'])
+def restore_json():
+    """Accept restore data as raw JSON body — works in all browsers without FormData."""
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({'error': 'Invalid or empty JSON body'}), 400
+    return _do_restore(data)
+
+def _do_restore(data):
     conn = get_db()
     skipped = created = 0
     try:

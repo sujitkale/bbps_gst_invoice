@@ -2,874 +2,988 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>GST Invoice Manager</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --saffron: #FF6B00; --saffron-light: #FF8C3A; --saffron-pale: #FFF3E8;
-  --green: #0A8A4A; --green-light: #E8F7EF;
-  --navy: #0F172A; --slate: #334155; --muted: #64748B;
-  --border: #E2E8F0; --surface: #F8FAFC; --white: #FFFFFF;
-  --radius: 12px; --font: 'Plus Jakarta Sans', sans-serif; --mono: 'JetBrains Mono', monospace;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.08); --shadow-md: 0 4px 16px rgba(0,0,0,.10);
+  --saffron:#FF6B00; --saffron-l:#FF8C3A; --saffron-pale:#FFF3E8;
+  --green:#0A8A4A;   --green-l:#E8F7EF;
+  --navy:#0F172A;    --slate:#334155;     --muted:#64748B;
+  --border:#E2E8F0;  --surface:#F8FAFC;  --white:#FFFFFF;
+  --r:12px;
+  --font:'Plus Jakarta Sans',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --nav-h:56px;
+  --bot-h:60px; /* bottom nav height on mobile */
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: var(--font); background: var(--surface); color: var(--navy); min-height: 100vh; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--font);background:var(--surface);color:var(--navy)}
 
-.nav {
-  background: var(--navy); padding: 0 20px; display: flex; align-items: center;
-  height: 58px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 16px rgba(0,0,0,.25);
+/* ── TOP NAV (desktop) ─────────────────────────────────────── */
+.top-nav{
+  background:var(--navy);height:var(--nav-h);
+  display:flex;align-items:center;padding:0 16px;
+  position:sticky;top:0;z-index:200;
+  box-shadow:0 2px 12px rgba(0,0,0,.3);
 }
-.nav-brand { display: flex; align-items: center; gap: 9px; color: white; font-weight: 800;
-  font-size: 1rem; margin-right: 24px; white-space: nowrap; }
-.nav-brand .flag { font-size: 1.3rem; }
-.nav-brand .chip { background: linear-gradient(135deg,var(--saffron),#FF8C3A); color: white;
-  font-size: .58rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; letter-spacing: 1px; }
-.nav-tabs { display: flex; gap: 2px; flex: 1; overflow-x: auto; }
-.nav-tab { color: #94A3B8; background: none; border: none; cursor: pointer; padding: 7px 13px;
-  border-radius: 7px; font-family: var(--font); font-size: .8rem; font-weight: 600;
-  white-space: nowrap; transition: all .2s; display: flex; align-items: center; gap: 5px; }
-.nav-tab:hover { color: white; background: rgba(255,255,255,.08); }
-.nav-tab.active { color: white; background: rgba(255,107,0,.2); }
-.nav-tab.active .ti { color: var(--saffron); }
+.brand{display:flex;align-items:center;gap:8px;color:#fff;font-weight:800;font-size:.95rem;margin-right:20px;white-space:nowrap}
+.brand-flag{font-size:1.25rem}
+.brand-chip{background:linear-gradient(135deg,var(--saffron),var(--saffron-l));color:#fff;font-size:.55rem;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:1px}
+.top-tabs{display:flex;gap:2px;flex:1;overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none}
+.top-tabs::-webkit-scrollbar{display:none}
+.ttab{color:#94A3B8;background:none;border:none;cursor:pointer;padding:7px 12px;border-radius:7px;
+  font-family:var(--font);font-size:.78rem;font-weight:600;white-space:nowrap;
+  transition:all .15s;display:flex;align-items:center;gap:5px}
+.ttab:hover{color:#fff;background:rgba(255,255,255,.09)}
+.ttab.active{color:#fff;background:rgba(255,107,0,.22)}
+.ttab.active .ti{color:var(--saffron)}
 
-.page { display: none; padding: 24px 20px; max-width: 1200px; margin: 0 auto; }
-.page.active { display: block; }
-
-.card { background: white; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow: hidden; }
-.card-header { padding: 18px 22px 14px; border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.card-title { font-size: .95rem; font-weight: 700; display: flex; align-items: center; gap: 7px; }
-.card-body { padding: 22px; }
-
-.sec-label { font-size: .68rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 14px; padding-bottom: 7px; border-bottom: 2px solid var(--border); }
-
-.form-grid { display: grid; gap: 14px; }
-.fg2 { grid-template-columns: 1fr 1fr; }
-.fg3 { grid-template-columns: 1fr 1fr 1fr; }
-.fg4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-.form-group { display: flex; flex-direction: column; gap: 5px; }
-.form-group label { font-size: .76rem; font-weight: 600; color: var(--slate); }
-.req { color: var(--saffron); }
-.form-group input, .form-group textarea, .form-group select {
-  border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 11px;
-  font-family: var(--font); font-size: .85rem; color: var(--navy); background: white;
-  transition: border-color .2s, box-shadow .2s; width: 100%; }
-.form-group input:focus, .form-group textarea:focus, .form-group select:focus {
-  outline: none; border-color: var(--saffron); box-shadow: 0 0 0 3px rgba(255,107,0,.1); }
-.form-group textarea { resize: vertical; min-height: 66px; }
-
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
-  border-radius: 8px; border: none; font-family: var(--font); font-size: .82rem;
-  font-weight: 600; cursor: pointer; transition: all .2s; white-space: nowrap; }
-.btn-primary { background: var(--saffron); color: white; }
-.btn-primary:hover { background: var(--saffron-light); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,107,0,.3); }
-.btn-success { background: var(--green); color: white; }
-.btn-success:hover { background: #0A7A42; }
-.btn-outline { background: white; color: var(--slate); border: 1.5px solid var(--border); }
-.btn-outline:hover { border-color: var(--saffron); color: var(--saffron); background: var(--saffron-pale); }
-.btn-danger { background: #FEF2F2; color: #DC2626; border: 1.5px solid #FECACA; }
-.btn-danger:hover { background: #DC2626; color: white; }
-.btn-blue { background: #EFF6FF; color: #2563EB; border: 1.5px solid #BFDBFE; }
-.btn-blue:hover { background: #2563EB; color: white; }
-.btn-sm { padding: 5px 11px; font-size: .76rem; }
-.btn-icon { padding: 6px; border-radius: 7px; }
-.btn-ghost { background: none; border: none; color: var(--muted); padding: 5px 7px; }
-.btn-ghost:hover { color: var(--saffron); background: var(--saffron-pale); }
-
-.badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 20px; font-size: .7rem; font-weight: 600; }
-.badge-draft { background: #F1F5F9; color: #64748B; }
-.badge-final { background: var(--green-light); color: var(--green); }
-.badge-paid  { background: #EFF6FF; color: #2563EB; }
-
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
-th { background: var(--surface); color: var(--muted); font-weight: 700; font-size: .69rem;
-  letter-spacing: .5px; text-transform: uppercase; padding: 10px 14px; text-align: left;
-  border-bottom: 1px solid var(--border); white-space: nowrap; }
-td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--surface); }
-.mono { font-family: var(--mono); font-size: .8rem; }
-
-.li-table { width: 100%; border-collapse: collapse; font-size: .81rem; }
-.li-table th { background: var(--navy); color: #94A3B8; font-size: .68rem;
-  letter-spacing: .5px; text-transform: uppercase; padding: 9px 8px; text-align: center; white-space: nowrap; }
-.li-table td { padding: 5px 5px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.li-table input, .li-table select { border: 1.5px solid var(--border); border-radius: 6px;
-  padding: 5px 7px; font-family: var(--font); font-size: .8rem; width: 100%; min-width: 55px;
-  color: var(--navy); background: white; }
-.li-table input:focus, .li-table select:focus { outline: none; border-color: var(--saffron); }
-.calc-field { background: #E8F7EF !important; color: var(--green) !important;
-  font-weight: 600; text-align: right; font-family: var(--mono); border-color: #BBF7D0 !important; font-size: .78rem !important; }
-.li-hint { text-align: center; color: var(--muted); font-size: .8rem; padding: 14px; font-style: italic; }
-
-.sum-box { background: linear-gradient(135deg,#F8FAFC,#F0FDF4); border: 1.5px solid var(--border);
-  border-radius: var(--radius); padding: 18px 22px; }
-.sum-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; }
-.sum-row.total { border-top: 2px solid var(--border); margin-top: 7px; padding-top: 11px; font-size: 1.05rem; font-weight: 800; }
-.sum-label { color: var(--slate); font-size: .85rem; }
-.sum-val { font-family: var(--mono); font-weight: 600; }
-.total .sum-val { color: var(--saffron); font-size: 1.1rem; }
-
-.stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 22px; }
-.stat-card { background: white; border-radius: var(--radius); padding: 18px;
-  border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
-.stat-label { font-size: .72rem; font-weight: 600; color: var(--muted); letter-spacing: .5px; text-transform: uppercase; }
-.stat-value { font-size: 1.5rem; font-weight: 800; color: var(--navy); margin-top: 4px; line-height: 1; }
-.stat-sub { font-size: .75rem; color: var(--muted); margin-top: 3px; }
-.stat-card.ac { border-left: 4px solid var(--saffron); }
-.stat-card.sc { border-left: 4px solid var(--green); }
-
-.chart-bars { display: flex; align-items: flex-end; gap: 8px; height: 110px; padding: 0 6px; }
-.bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.bar { width: 100%; background: linear-gradient(180deg,var(--saffron),#FF8C3A); border-radius: 3px 3px 0 0; min-height: 3px; }
-.bar-label { font-size: .62rem; color: var(--muted); font-weight: 600; white-space: nowrap; }
-.bar-val { font-size: .62rem; color: var(--navy); font-weight: 700; }
-
-/* ── CONFIRM DIALOG (inline, not modal) ── */
-.confirm-box { display: none; background: #FEF2F2; border: 1.5px solid #FECACA;
-  border-radius: 10px; padding: 14px 18px; margin-top: 8px; }
-.confirm-box.open { display: block; }
-.confirm-box p { font-size: .85rem; color: #7F1D1D; margin-bottom: 12px; }
-.confirm-box .actions { display: flex; gap: 8px; }
-
-.toast { position: fixed; bottom: 22px; right: 22px; z-index: 9999; background: var(--navy);
-  color: white; padding: 11px 18px; border-radius: 10px; font-size: .85rem; font-weight: 500;
-  display: flex; align-items: center; gap: 9px; box-shadow: var(--shadow-md);
-  transform: translateY(80px); transition: transform .3s; pointer-events: none; }
-.toast.show { transform: translateY(0); }
-.toast.success { border-left: 4px solid var(--green); }
-.toast.error   { border-left: 4px solid #DC2626; }
-.toast.info    { border-left: 4px solid #2563EB; }
-
-.supply-toggle { display: flex; gap: 0; background: var(--surface); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
-.supply-opt { padding: 6px 16px; border-radius: 6px; border: none; cursor: pointer;
-  font-family: var(--font); font-size: .81rem; font-weight: 600; color: var(--muted);
-  background: none; transition: all .2s; }
-.supply-opt.active { background: white; color: var(--navy); box-shadow: var(--shadow-sm); }
-
-.search-bar { display: flex; align-items: center; gap: 7px; background: var(--surface);
-  border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 11px; width: 240px; }
-.search-bar input { border: none; background: none; outline: none; font-family: var(--font);
-  font-size: .83rem; color: var(--navy); width: 100%; }
-
-.words-display { background: var(--saffron-pale); border: 1px solid rgba(255,107,0,.2);
-  border-radius: 7px; padding: 9px 13px; font-size: .81rem; color: var(--saffron);
-  font-weight: 600; font-style: italic; margin-top: 7px; }
-
-.divider { height: 1px; background: var(--border); margin: 18px 0; }
-.empty { text-align: center; padding: 52px 24px; color: var(--muted); }
-.empty .em { font-size: 2.5rem; margin-bottom: 10px; }
-.empty h3 { font-size: .95rem; color: var(--slate); margin-bottom: 5px; }
-
-.upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 28px;
-  text-align: center; cursor: pointer; transition: all .2s; }
-.upload-zone:hover { border-color: var(--saffron); background: var(--saffron-pale); }
-.upload-zone.drag { border-color: var(--saffron); background: var(--saffron-pale); }
-
-.audit-action { display: inline-flex; padding: 2px 8px; border-radius: 4px; font-size: .68rem; font-weight: 700; }
-.action-create { background: #D1FAE5; color: #065F46; }
-.action-update { background: #DBEAFE; color: #1E3A8A; }
-.action-delete { background: #FEE2E2; color: #7F1D1D; }
-.action-restore{ background: #FEF3C7; color: #78350F; }
-
-@media(max-width:768px) {
-  .fg2,.fg3,.fg4 { grid-template-columns: 1fr; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  .page { padding: 14px; }
-  .card-body { padding: 14px; }
-  .nav-tab span { display: none; }
-  .search-bar { width: 100%; }
+/* ── BOTTOM NAV (mobile only) ──────────────────────────────── */
+.bot-nav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;
+  height:var(--bot-h);background:var(--navy);
+  z-index:200;border-top:1px solid rgba(255,255,255,.1);
+  padding-bottom:env(safe-area-inset-bottom);
 }
-@media(max-width:480px) { .stats-grid { grid-template-columns: 1fr; } }
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+.bot-tabs{display:flex;height:100%}
+.btab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;background:none;border:none;cursor:pointer;color:#64748B;
+  font-family:var(--font);font-size:.6rem;font-weight:700;transition:color .15s;
+  -webkit-tap-highlight-color:transparent}
+.btab .bi{font-size:1.25rem;line-height:1}
+.btab.active{color:var(--saffron)}
+.btab span{letter-spacing:.3px}
+
+/* ── PAGE CONTENT ───────────────────────────────────────────── */
+.page{display:none;padding:20px 16px;max-width:1200px;margin:0 auto;padding-bottom:calc(var(--bot-h) + 16px)}
+.page.active{display:block}
+
+/* ── CARDS ─────────────────────────────────────────────────── */
+.card{background:#fff;border-radius:var(--r);border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden}
+.ch{padding:16px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ct{font-size:.9rem;font-weight:700;display:flex;align-items:center;gap:6px}
+.cb{padding:18px}
+
+/* ── SECTION LABEL ─────────────────────────────────────────── */
+.sl{font-size:.67rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--border)}
+
+/* ── FORM ───────────────────────────────────────────────────── */
+.fg{display:grid;gap:12px}
+.fg2{grid-template-columns:1fr 1fr}
+.fg3{grid-template-columns:1fr 1fr 1fr}
+.fg{display:flex;flex-direction:column;gap:4px}
+label{font-size:.74rem;font-weight:600;color:var(--slate)}
+.req{color:var(--saffron)}
+input,textarea,select{
+  border:1.5px solid var(--border);border-radius:8px;padding:9px 11px;
+  font-family:var(--font);font-size:.84rem;color:var(--navy);background:#fff;
+  width:100%;transition:border-color .15s,box-shadow .15s;
+  -webkit-appearance:none;appearance:none}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--saffron);box-shadow:0 0 0 3px rgba(255,107,0,.1)}
+textarea{resize:vertical;min-height:64px}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748B' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+
+/* ── BUTTONS ─────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;border:none;
+  font-family:var(--font);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn-primary{background:var(--saffron);color:#fff}
+.btn-primary:active{background:var(--saffron-l)}
+.btn-success{background:var(--green);color:#fff}
+.btn-success:active{background:#0A7A42}
+.btn-outline{background:#fff;color:var(--slate);border:1.5px solid var(--border)}
+.btn-outline:active{border-color:var(--saffron);color:var(--saffron)}
+.btn-danger{background:#FEF2F2;color:#DC2626;border:1.5px solid #FECACA}
+.btn-danger:active{background:#DC2626;color:#fff}
+.btn-blue{background:#EFF6FF;color:#2563EB;border:1.5px solid #BFDBFE}
+.btn-sm{padding:6px 12px;font-size:.76rem}
+.btn-icon{padding:7px;border-radius:7px}
+.btn-ghost{background:none;border:none;color:var(--muted);padding:5px 7px;border-radius:6px}
+.btn-ghost:active{color:var(--saffron);background:var(--saffron-pale)}
+@media(hover:hover){
+  .btn-primary:hover{background:var(--saffron-l);transform:translateY(-1px);box-shadow:0 4px 12px rgba(255,107,0,.3)}
+  .btn-success:hover{background:#0A7A42}
+  .btn-outline:hover{border-color:var(--saffron);color:var(--saffron);background:var(--saffron-pale)}
+  .btn-danger:hover{background:#DC2626;color:#fff}
+  .btn-blue:hover{background:#2563EB;color:#fff}
+  .btn-ghost:hover{color:var(--saffron);background:var(--saffron-pale)}
+}
+
+/* ── BADGE ───────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:700}
+.badge-draft{background:#F1F5F9;color:#64748B}
+.badge-final{background:var(--green-l);color:var(--green)}
+.badge-paid{background:#EFF6FF;color:#2563EB}
+
+/* ── TABLE ───────────────────────────────────────────────────── */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{background:var(--surface);color:var(--muted);font-weight:700;font-size:.67rem;
+  letter-spacing:.5px;text-transform:uppercase;padding:9px 12px;text-align:left;
+  border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+@media(hover:hover){tr:hover td{background:var(--surface)}}
+.mono{font-family:var(--mono);font-size:.78rem}
+
+/* ── LINE ITEM TABLE ─────────────────────────────────────────── */
+.lit{width:100%;border-collapse:collapse;font-size:.79rem}
+.lit th{background:var(--navy);color:#94A3B8;font-size:.65rem;letter-spacing:.4px;
+  text-transform:uppercase;padding:8px 7px;text-align:center;white-space:nowrap}
+.lit td{padding:4px 4px;border-bottom:1px solid var(--border);vertical-align:middle}
+.lit input,.lit select{border:1.5px solid var(--border);border-radius:6px;padding:6px 7px;
+  font-family:var(--font);font-size:.79rem;width:100%;min-width:50px;
+  color:var(--navy);background:#fff;-webkit-appearance:none;appearance:none}
+.lit input:focus{outline:none;border-color:var(--saffron)}
+.calc{background:#E8F7EF!important;color:var(--green)!important;font-weight:700;
+  text-align:right;font-family:var(--mono);border-color:#BBF7D0!important;font-size:.76rem!important}
+.li-hint{text-align:center;color:var(--muted);font-size:.8rem;padding:18px;font-style:italic}
+
+/* ── SUMMARY BOX ─────────────────────────────────────────────── */
+.sbox{background:linear-gradient(135deg,#F8FAFC,#F0FDF4);border:1.5px solid var(--border);border-radius:var(--r);padding:16px 20px}
+.srow{display:flex;justify-content:space-between;align-items:center;padding:5px 0}
+.srow.tot{border-top:2px solid var(--border);margin-top:6px;padding-top:10px;font-size:1rem;font-weight:800}
+.slbl{color:var(--slate);font-size:.83rem}
+.sval{font-family:var(--mono);font-weight:600}
+.tot .sval{color:var(--saffron);font-size:1.05rem}
+.words{background:var(--saffron-pale);border:1px solid rgba(255,107,0,.2);border-radius:7px;
+  padding:8px 12px;font-size:.79rem;color:var(--saffron);font-weight:600;font-style:italic;margin-top:7px}
+
+/* ── STATS ───────────────────────────────────────────────────── */
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.sc{background:#fff;border-radius:var(--r);padding:16px;border:1px solid var(--border)}
+.sc.ac{border-left:4px solid var(--saffron)}
+.sc.gc{border-left:4px solid var(--green)}
+.sc-lbl{font-size:.7rem;font-weight:700;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}
+.sc-val{font-size:1.4rem;font-weight:800;color:var(--navy);margin-top:3px;line-height:1}
+.sc-sub{font-size:.72rem;color:var(--muted);margin-top:3px}
+
+/* ── CHART ───────────────────────────────────────────────────── */
+.bars{display:flex;align-items:flex-end;gap:6px;height:100px;padding:0 4px}
+.bg{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.bar{width:100%;background:linear-gradient(180deg,var(--saffron),var(--saffron-l));border-radius:3px 3px 0 0;min-height:3px}
+.bl{font-size:.58rem;color:var(--muted);font-weight:600;white-space:nowrap}
+.bv{font-size:.58rem;color:var(--navy);font-weight:700}
+
+/* ── INLINE DELETE CONFIRM ───────────────────────────────────── */
+.del-confirm{display:none;background:#FEF2F2;border:1.5px solid #FECACA;
+  border-radius:10px;padding:14px 16px;margin:0 16px 16px}
+.del-confirm.open{display:block}
+.del-confirm p{font-size:.83rem;color:#7F1D1D;margin-bottom:10px}
+.del-confirm .da{display:flex;gap:8px}
+
+/* ── TOAST ───────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:calc(var(--bot-h) + 12px);right:16px;z-index:9999;
+  background:var(--navy);color:#fff;padding:11px 16px;border-radius:10px;
+  font-size:.83rem;font-weight:500;display:flex;align-items:center;gap:8px;
+  box-shadow:0 4px 20px rgba(0,0,0,.25);transform:translateY(100px);
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;max-width:320px}
+.toast.show{transform:translateY(0)}
+.toast.success{border-left:4px solid var(--green)}
+.toast.error{border-left:4px solid #DC2626}
+.toast.info{border-left:4px solid #2563EB}
+
+/* ── SUPPLY TOGGLE ───────────────────────────────────────────── */
+.stog{display:flex;background:var(--surface);border-radius:8px;padding:3px;border:1px solid var(--border);width:fit-content}
+.sopt{padding:7px 14px;border-radius:6px;border:none;cursor:pointer;font-family:var(--font);
+  font-size:.79rem;font-weight:600;color:var(--muted);background:none;transition:all .15s;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent}
+.sopt.active{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+/* ── SEARCH ──────────────────────────────────────────────────── */
+.sbar{display:flex;align-items:center;gap:7px;background:var(--surface);
+  border:1.5px solid var(--border);border-radius:8px;padding:7px 11px}
+.sbar input{border:none;background:none;outline:none;font-family:var(--font);font-size:.82rem;color:var(--navy);width:100%;min-width:0}
+
+/* ── UPLOAD ZONE ─────────────────────────────────────────────── */
+.upz{border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:all .2s}
+.upz:hover,.upz.drag{border-color:var(--saffron);background:var(--saffron-pale)}
+
+/* ── AUDIT ───────────────────────────────────────────────────── */
+.aa{display:inline-flex;padding:2px 7px;border-radius:4px;font-size:.66rem;font-weight:700}
+.a-c{background:#D1FAE5;color:#065F46}
+.a-u{background:#DBEAFE;color:#1E3A8A}
+.a-d{background:#FEE2E2;color:#7F1D1D}
+.a-r{background:#FEF3C7;color:#78350F}
+
+/* ── EMPTY ───────────────────────────────────────────────────── */
+.empty{text-align:center;padding:48px 24px;color:var(--muted)}
+.em{font-size:2.2rem;margin-bottom:8px}
+
+/* ── DIVIDER ─────────────────────────────────────────────────── */
+.divider{height:1px;background:var(--border);margin:16px 0}
+
+/* ══ RESPONSIVE ══════════════════════════════════════════════════ */
+@media(max-width:768px){
+  /* Show bottom nav, hide top tabs */
+  .top-tabs{display:none}
+  .bot-nav{display:block}
+  /* Adjust page bottom padding for bottom nav */
+  .page{padding-bottom:calc(var(--bot-h) + 20px)}
+  /* Toast above bottom nav */
+  .toast{bottom:calc(var(--bot-h) + 10px);left:16px;right:16px;max-width:none}
+  /* Grids collapse */
+  .fg2,.fg3{grid-template-columns:1fr}
+  .sgrid{grid-template-columns:1fr 1fr}
+  /* Dashboard 2-col layout collapses */
+  .dash-grid{grid-template-columns:1fr!important}
+  /* Summary below line items full width */
+  .inv-bottom{grid-template-columns:1fr!important}
+  /* data page */
+  .data-grid{grid-template-columns:1fr!important}
+  /* smaller card padding */
+  .cb{padding:14px}
+  .ch{padding:14px 14px 10px}
+}
+@media(max-width:480px){
+  .sgrid{grid-template-columns:1fr}
+  .brand-chip{display:none}
+}
+/* scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 </style>
 </head>
 <body>
 
-<nav class="nav">
-  <div class="nav-brand">
-    <span class="flag">🇮🇳</span>
+<!-- ═══ TOP NAV ═══ -->
+<nav class="top-nav">
+  <div class="brand">
+    <span class="brand-flag">🇮🇳</span>
     <span>GST Invoice</span>
-    <span class="chip">PRO</span>
+    <span class="brand-chip">PRO</span>
   </div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="go('dashboard')"><span class="ti">📊</span><span>Dashboard</span></button>
-    <button class="nav-tab" onclick="go('invoices')"><span class="ti">🧾</span><span>Invoices</span></button>
-    <button class="nav-tab" onclick="go('new-invoice')"><span class="ti">➕</span><span>New Invoice</span></button>
-    <button class="nav-tab" onclick="go('data')"><span class="ti">💾</span><span>Data</span></button>
-    <button class="nav-tab" onclick="go('config')"><span class="ti">⚙️</span><span>Settings</span></button>
+  <div class="top-tabs" id="top-tabs">
+    <button class="ttab active" data-page="dashboard"><span class="ti">📊</span><span>Dashboard</span></button>
+    <button class="ttab" data-page="invoices"><span class="ti">🧾</span><span>Invoices</span></button>
+    <button class="ttab" data-page="new-invoice"><span class="ti">➕</span><span>New Invoice</span></button>
+    <button class="ttab" data-page="data"><span class="ti">💾</span><span>Data</span></button>
+    <button class="ttab" data-page="config"><span class="ti">⚙️</span><span>Settings</span></button>
   </div>
 </nav>
 
+<!-- ═══ BOTTOM NAV (mobile) ═══ -->
+<nav class="bot-nav">
+  <div class="bot-tabs" id="bot-tabs">
+    <button class="btab active" data-page="dashboard"><span class="bi">📊</span><span>Home</span></button>
+    <button class="btab" data-page="invoices"><span class="bi">🧾</span><span>Invoices</span></button>
+    <button class="btab" data-page="new-invoice"><span class="bi">➕</span><span>New</span></button>
+    <button class="btab" data-page="data"><span class="bi">💾</span><span>Data</span></button>
+    <button class="btab" data-page="config"><span class="bi">⚙️</span><span>Settings</span></button>
+  </div>
+</nav>
+
+<!-- ═══ TOAST ═══ -->
 <div class="toast" id="toast"></div>
 
-<!-- ═══════════════════════ DASHBOARD ═══════════════════════ -->
+<!-- ══════════════════ DASHBOARD ══════════════════ -->
 <div class="page active" id="page-dashboard">
-  <div class="stats-grid" id="stats-grid">
-    <div class="stat-card" style="height:88px;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite"></div>
-    <div class="stat-card" style="height:88px;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite"></div>
-    <div class="stat-card" style="height:88px;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite"></div>
-    <div class="stat-card" style="height:88px;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite"></div>
+  <div class="sgrid" id="sgrid">
+    <div class="sc" style="animation:shimmer 1.5s infinite;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;height:80px"></div>
+    <div class="sc" style="animation:shimmer 1.5s infinite;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;height:80px"></div>
+    <div class="sc" style="animation:shimmer 1.5s infinite;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;height:80px"></div>
+    <div class="sc" style="animation:shimmer 1.5s infinite;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;height:80px"></div>
   </div>
-  <style>@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}</style>
-  <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
+  <div class="dash-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:14px">
     <div class="card">
-      <div class="card-header"><div class="card-title">📈 Monthly Revenue</div></div>
-      <div class="card-body"><div class="chart-bars" id="chart-bars"></div></div>
+      <div class="ch"><div class="ct">📈 Monthly Revenue</div></div>
+      <div class="cb"><div class="bars" id="chart-bars"></div></div>
     </div>
     <div class="card">
-      <div class="card-header"><div class="card-title">🏆 Top Clients</div></div>
-      <div class="card-body" id="top-clients"></div>
+      <div class="ch"><div class="ct">🏆 Top Clients</div></div>
+      <div class="cb" id="top-clients"></div>
     </div>
   </div>
   <div style="margin-top:14px" class="card">
-    <div class="card-header">
-      <div class="card-title">🧾 Recent Invoices</div>
+    <div class="ch">
+      <div class="ct">🧾 Recent Invoices</div>
       <button class="btn btn-outline btn-sm" onclick="go('invoices')">View All →</button>
     </div>
-    <div class="table-wrap" id="recent-table"></div>
+    <div class="tw" id="recent-table"></div>
   </div>
 </div>
 
-<!-- ═══════════════════════ INVOICES LIST ═══════════════════════ -->
+<!-- ══════════════════ INVOICES ══════════════════ -->
 <div class="page" id="page-invoices">
   <div class="card">
-    <div class="card-header">
-      <div class="card-title">🧾 All Invoices</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <div class="search-bar">
+    <div class="ch">
+      <div class="ct">🧾 All Invoices</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%">
+        <div class="sbar" style="flex:1;min-width:160px">
           <span>🔍</span>
-          <input type="text" id="search-input" placeholder="Search client, invoice no…" oninput="filterInvoices()">
+          <input type="text" id="search-input" placeholder="Search…" oninput="filterInvoices()">
         </div>
-        <button class="btn btn-primary" onclick="go('new-invoice')">+ New Invoice</button>
+        <button class="btn btn-primary btn-sm" onclick="go('new-invoice')">+ New</button>
       </div>
     </div>
-    <div class="table-wrap">
+    <div class="tw">
       <table>
-        <thead>
-          <tr><th>Invoice No</th><th>Date</th><th>Client</th><th>Taxable</th><th>GST</th><th>Total</th><th>Status</th><th>Actions</th></tr>
-        </thead>
-        <tbody id="invoice-tbody"></tbody>
+        <thead><tr><th>Invoice No</th><th>Date</th><th>Client</th><th>Taxable</th><th>GST</th><th>Total</th><th>Status</th><th></th></tr></thead>
+        <tbody id="inv-tbody"></tbody>
       </table>
     </div>
-    <!-- Inline confirm delete – replaces the auto-popping modal -->
-    <div id="delete-confirm" class="confirm-box" style="margin:0 16px 16px">
-      <p>⚠️ Delete invoice <strong id="delete-inv-label"></strong>? This cannot be undone.</p>
-      <div class="actions">
-        <button class="btn btn-outline btn-sm" onclick="cancelDelete()">Cancel</button>
-        <button class="btn btn-danger btn-sm" id="confirm-delete-btn">Yes, Delete</button>
+    <div id="del-box" class="del-confirm">
+      <p>⚠️ Delete invoice <strong id="del-label"></strong>? This cannot be undone.</p>
+      <div class="da">
+        <button class="btn btn-outline btn-sm" onclick="cancelDel()">Cancel</button>
+        <button class="btn btn-danger btn-sm" id="del-confirm-btn">Yes, Delete</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════ NEW / EDIT INVOICE ═══════════════════════ -->
+<!-- ══════════════════ NEW / EDIT INVOICE ══════════════════ -->
 <div class="page" id="page-new-invoice">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
-    <h2 style="font-size:1.3rem;font-weight:800" id="inv-form-title">New Invoice</h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="go('invoices')">← Back</button>
-      <button class="btn btn-outline btn-sm" onclick="saveInvoice('draft')">💾 Save Draft</button>
-      <button class="btn btn-success" onclick="saveInvoice('final')">✅ Finalize</button>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <h2 style="font-size:1.2rem;font-weight:800" id="inv-title">New Invoice</h2>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" onclick="go('invoices')">← Back</button>
+      <button class="btn btn-outline btn-sm" onclick="saveInvoice('draft')">💾 Draft</button>
+      <button class="btn btn-success btn-sm" onclick="saveInvoice('final')">✅ Finalize</button>
     </div>
   </div>
-  <input type="hidden" id="editing-id" value="">
+  <input type="hidden" id="edit-id">
 
-  <div class="card" style="margin-bottom:14px">
-    <div class="card-body">
-      <div class="sec-label">Invoice Details</div>
-      <div class="form-grid fg3">
-        <div class="form-group"><label>Invoice No <span class="req">*</span></label><input type="text" id="f-invoice-no" placeholder="BBPS/37/25-26"></div>
-        <div class="form-group"><label>Invoice Date <span class="req">*</span></label><input type="date" id="f-date"></div>
-        <div class="form-group"><label>PO No</label><input type="text" id="f-po-no" placeholder="Optional"></div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="cb">
+      <div class="sl">Invoice Details</div>
+      <div class="fg fg3" style="display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr">
+        <div class="fgf"><label>Invoice No <span class="req">*</span></label><input type="text" id="f-no" placeholder="BBPS/37/25-26"></div>
+        <div class="fgf"><label>Date <span class="req">*</span></label><input type="date" id="f-date"></div>
+        <div class="fgf"><label>PO No</label><input type="text" id="f-po"></div>
       </div>
     </div>
   </div>
 
-  <div class="card" style="margin-bottom:14px">
-    <div class="card-body">
-      <div class="sec-label">Client / Billing</div>
-      <div class="form-grid fg2">
-        <div class="form-group"><label>Client Name <span class="req">*</span></label><input type="text" id="f-client"></div>
-        <div class="form-group"><label>Client GSTIN</label><input type="text" id="f-client-gstin" style="text-transform:uppercase"></div>
-        <div class="form-group" style="grid-column:1/-1"><label>Client Address</label><textarea id="f-client-addr"></textarea></div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="cb">
+      <div class="sl">Client Details</div>
+      <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr">
+        <div class="fgf"><label>Client Name <span class="req">*</span></label><input type="text" id="f-client"></div>
+        <div class="fgf"><label>Client GSTIN</label><input type="text" id="f-cgstin" style="text-transform:uppercase" placeholder="27AAATB2599R1ZZ"></div>
+        <div class="fgf" style="grid-column:1/-1"><label>Client Address</label><textarea id="f-caddr" placeholder="Full billing address…"></textarea></div>
       </div>
       <div class="divider"></div>
-      <div class="sec-label">Supply Type</div>
-      <div class="supply-toggle">
-        <button class="supply-opt active" onclick="setSupply('intra',this)">Intra-State (CGST + SGST)</button>
-        <button class="supply-opt" onclick="setSupply('inter',this)">Inter-State (IGST)</button>
+      <div class="sl">Supply Type</div>
+      <div class="stog">
+        <button class="sopt active" id="sopt-intra" onclick="setSupply('intra')">Intra-State (CGST+SGST)</button>
+        <button class="sopt" id="sopt-inter" onclick="setSupply('inter')">Inter-State (IGST)</button>
       </div>
       <input type="hidden" id="f-supply" value="intra">
     </div>
   </div>
 
-  <div class="card" style="margin-bottom:14px">
-    <div class="card-header">
-      <div class="card-title">📋 Line Items</div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="ch">
+      <div class="ct">📋 Line Items</div>
       <button class="btn btn-outline btn-sm" onclick="addLI()">+ Add Item</button>
     </div>
-    <div style="overflow-x:auto">
-      <table class="li-table" id="li-table">
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <table class="lit" id="lit">
         <thead>
           <tr>
-            <th style="width:32px">#</th>
-            <th style="min-width:170px">Description</th>
-            <th style="min-width:85px">HSN/SAC</th>
-            <th style="min-width:75px">Qty</th>
-            <th style="min-width:65px">Unit</th>
-            <th style="min-width:85px">Rate (₹)</th>
-            <th style="min-width:105px;background:#1A4731">Taxable Val</th>
-            <th style="min-width:55px" id="th1">CGST%</th>
-            <th style="min-width:95px;background:#1A4731" id="th2">CGST Amt</th>
-            <th style="min-width:55px" id="th3">SGST%</th>
-            <th style="min-width:95px;background:#1A4731" id="th4">SGST Amt</th>
-            <th style="min-width:70px">Del</th>
+            <th style="width:30px">#</th>
+            <th style="min-width:160px">Description</th>
+            <th style="min-width:80px">HSN/SAC</th>
+            <th style="min-width:72px">Qty</th>
+            <th style="min-width:62px">Unit</th>
+            <th style="min-width:82px">Rate (₹)</th>
+            <th style="min-width:100px;background:#1A4731">Taxable Val</th>
+            <th style="min-width:52px" id="th1">CGST%</th>
+            <th style="min-width:90px;background:#1A4731" id="th2">CGST Amt</th>
+            <th style="min-width:52px" id="th3">SGST%</th>
+            <th style="min-width:90px;background:#1A4731" id="th4">SGST Amt</th>
+            <th style="min-width:36px"></th>
           </tr>
         </thead>
-        <tbody id="li-body"><tr><td colspan="12" class="li-hint">Click "+ Add Item" to begin</td></tr></tbody>
+        <tbody id="li-body"><tr><td colspan="12" class="li-hint">Tap "+ Add Item" to start</td></tr></tbody>
       </table>
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 310px;gap:14px;align-items:start">
+  <div class="inv-bottom" style="display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:start">
     <div class="card">
-      <div class="card-body">
-        <div class="sec-label">Notes / Payment Terms</div>
-        <textarea id="f-notes" style="width:100%;min-height:82px;border:1.5px solid var(--border);border-radius:8px;padding:9px;font-family:var(--font);font-size:.85rem"></textarea>
+      <div class="cb">
+        <div class="sl">Notes</div>
+        <textarea id="f-notes" placeholder="Payment terms, notes…" style="width:100%;min-height:76px;border:1.5px solid var(--border);border-radius:8px;padding:9px;font-family:var(--font);font-size:.83rem"></textarea>
       </div>
     </div>
-    <div class="sum-box">
-      <div class="sec-label">Summary</div>
-      <div class="sum-row"><span class="sum-label">Taxable Value</span><span class="sum-val" id="s-tv">₹0.00</span></div>
-      <div class="sum-row" id="s-cgst-row"><span class="sum-label">CGST</span><span class="sum-val" id="s-cgst">₹0.00</span></div>
-      <div class="sum-row" id="s-sgst-row"><span class="sum-label">SGST</span><span class="sum-val" id="s-sgst">₹0.00</span></div>
-      <div class="sum-row" id="s-igst-row" style="display:none"><span class="sum-label">IGST</span><span class="sum-val" id="s-igst">₹0.00</span></div>
-      <div class="sum-row"><span class="sum-label">Round Off</span><span class="sum-val" id="s-roff">+₹0.00</span></div>
-      <div class="sum-row total"><span class="sum-label">GRAND TOTAL</span><span class="sum-val" id="s-total">₹0</span></div>
-      <div class="words-display" id="s-words">Zero Rupees Only</div>
+    <div class="sbox">
+      <div class="sl">Summary</div>
+      <div class="srow"><span class="slbl">Taxable Value</span><span class="sval" id="s-tv">₹0.00</span></div>
+      <div class="srow" id="s-cgst-r"><span class="slbl">CGST</span><span class="sval" id="s-cgst">₹0.00</span></div>
+      <div class="srow" id="s-sgst-r"><span class="slbl">SGST</span><span class="sval" id="s-sgst">₹0.00</span></div>
+      <div class="srow" id="s-igst-r" style="display:none"><span class="slbl">IGST</span><span class="sval" id="s-igst">₹0.00</span></div>
+      <div class="srow"><span class="slbl">Round Off</span><span class="sval" id="s-roff">+₹0.00</span></div>
+      <div class="srow tot"><span class="slbl">GRAND TOTAL</span><span class="sval" id="s-tot">₹0</span></div>
+      <div class="words" id="s-words">Zero Rupees Only</div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════ DATA PAGE ═══════════════════════ -->
+<!-- ══════════════════ DATA ══════════════════ -->
 <div class="page" id="page-data">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-
-    <!-- Backup -->
+  <div class="data-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
     <div class="card">
-      <div class="card-header"><div class="card-title">📤 Export Backup</div></div>
-      <div class="card-body">
-        <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px">Download a complete JSON backup of all your invoices and settings. Use this to migrate to a new server or as a safety copy.</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-success" onclick="downloadBackup()">⬇️ Download JSON Backup</button>
-          <button class="btn btn-blue" onclick="downloadCSV()">📊 Export CSV (for Tally/Excel)</button>
+      <div class="ch"><div class="ct">📤 Export Backup</div></div>
+      <div class="cb">
+        <p style="font-size:.83rem;color:var(--muted);margin-bottom:14px">Download all invoices + settings as a JSON file. Use to migrate or as a safety copy.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-success btn-sm" onclick="dlBackup()">⬇️ JSON Backup</button>
+          <button class="btn btn-blue btn-sm" onclick="dlCSV()">📊 CSV for Tally</button>
         </div>
       </div>
     </div>
-
-    <!-- Restore -->
     <div class="card">
-      <div class="card-header"><div class="card-title">📥 Restore from Backup</div></div>
-      <div class="card-body">
-        <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">Upload a previously downloaded JSON backup. Existing invoices (by invoice number) will be skipped — no duplicates.</p>
-        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('restore-file').click()"
-             ondragover="event.preventDefault();this.classList.add('drag')"
-             ondragleave="this.classList.remove('drag')"
-             ondrop="handleDrop(event)">
-          <div style="font-size:2rem;margin-bottom:8px">📁</div>
-          <div style="font-size:.85rem;font-weight:600;color:var(--slate)">Click to select or drag & drop</div>
-          <div style="font-size:.75rem;color:var(--muted);margin-top:4px">JSON backup file (.json)</div>
+      <div class="ch"><div class="ct">📥 Restore from Backup</div></div>
+      <div class="cb">
+        <p style="font-size:.83rem;color:var(--muted);margin-bottom:12px">Upload a JSON backup. Existing invoices (by invoice number) are skipped — no duplicates.</p>
+        <div class="upz" id="upz">
+          <div style="font-size:1.8rem;margin-bottom:6px">📁</div>
+          <div style="font-size:.83rem;font-weight:600;color:var(--slate)">Tap to select backup file</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:3px">.json files only</div>
         </div>
-        <input type="file" id="restore-file" accept=".json" style="display:none" onchange="restoreBackup(this.files[0])">
-        <div id="restore-status" style="margin-top:12px;font-size:.83rem"></div>
+        <!-- Hidden real file input - triggered by button to avoid browser security issues -->
+        <button class="btn btn-outline btn-sm" id="pick-file-btn" style="margin-top:10px;width:100%">📂 Choose File</button>
+        <input type="file" id="restore-input" accept=".json,application/json" style="display:none">
+        <div id="restore-status" style="margin-top:10px;font-size:.81rem"></div>
       </div>
     </div>
   </div>
-
-  <!-- Audit Log -->
   <div class="card">
-    <div class="card-header">
-      <div class="card-title">📋 Audit Log</div>
-      <button class="btn btn-outline btn-sm" onclick="loadAuditLog()">🔄 Refresh</button>
+    <div class="ch">
+      <div class="ct">📋 Audit Log</div>
+      <button class="btn btn-outline btn-sm" onclick="loadAudit()">🔄 Refresh</button>
     </div>
-    <div class="table-wrap">
+    <div class="tw">
       <table>
         <thead><tr><th>Time</th><th>Action</th><th>Entity</th><th>Detail</th></tr></thead>
-        <tbody id="audit-tbody"><tr><td colspan="4" class="li-hint">Loading…</td></tr></tbody>
+        <tbody id="audit-tbody"></tbody>
       </table>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════ SETTINGS ═══════════════════════ -->
+<!-- ══════════════════ SETTINGS ══════════════════ -->
 <div class="page" id="page-config">
   <div class="card">
-    <div class="card-header">
-      <div class="card-title">🏢 Company Settings</div>
-      <button class="btn btn-primary" onclick="saveConfig()">💾 Save Settings</button>
+    <div class="ch">
+      <div class="ct">🏢 Company Settings</div>
+      <button class="btn btn-primary btn-sm" onclick="saveConfig()">💾 Save Settings</button>
     </div>
-    <div class="card-body">
-      <div class="sec-label">Business Information</div>
-      <div class="form-grid fg2">
-        <div class="form-group" style="grid-column:1/-1"><label>Company / Business Name <span class="req">*</span></label><input type="text" id="c-name" placeholder="BHAKTI BIRD PROOFING SERVICES"></div>
-        <div class="form-group"><label>GSTIN <span class="req">*</span></label><input type="text" id="c-gstin" placeholder="27AXIPM7458B1ZA" style="text-transform:uppercase"></div>
-        <div class="form-group"><label>State Code</label><input type="text" id="c-state" placeholder="27" maxlength="2"></div>
-        <div class="form-group"><label>Contact Number</label><input type="tel" id="c-contact" placeholder="9876543210"></div>
-        <div class="form-group"><label>Email</label><input type="email" id="c-email" placeholder="business@example.com"></div>
-        <div class="form-group" style="grid-column:1/-1"><label>Full Business Address</label><textarea id="c-address" placeholder="Shop No., Street, City, State, PIN"></textarea></div>
+    <div class="cb">
+      <div class="sl">Business Information</div>
+      <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr">
+        <div class="fgf" style="grid-column:1/-1"><label>Company / Business Name <span class="req">*</span></label><input type="text" id="c-name" placeholder="BHAKTI BIRD PROOFING SERVICES"></div>
+        <div class="fgf"><label>GSTIN <span class="req">*</span></label><input type="text" id="c-gstin" placeholder="27AXIPM7458B1ZA" style="text-transform:uppercase"></div>
+        <div class="fgf"><label>State Code</label><input type="text" id="c-state" placeholder="27" maxlength="2"></div>
+        <div class="fgf"><label>Contact Number</label><input type="tel" id="c-contact" placeholder="9876543210"></div>
+        <div class="fgf"><label>Email</label><input type="email" id="c-email" placeholder="business@example.com"></div>
+        <div class="fgf" style="grid-column:1/-1"><label>Full Business Address</label><textarea id="c-addr"></textarea></div>
       </div>
       <div class="divider"></div>
-      <div class="sec-label">Bank Details</div>
-      <div class="form-grid fg3">
-        <div class="form-group"><label>Beneficiary Name</label><input type="text" id="c-bname"></div>
-        <div class="form-group"><label>Account Number</label><input type="text" id="c-accno"></div>
-        <div class="form-group"><label>IFSC Code</label><input type="text" id="c-ifsc" style="text-transform:uppercase"></div>
-        <div class="form-group"><label>Bank Name</label><input type="text" id="c-bank"></div>
-        <div class="form-group"><label>Branch</label><input type="text" id="c-branch"></div>
-        <div class="form-group"><label>Account Type</label>
+      <div class="sl">Bank Details</div>
+      <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr">
+        <div class="fgf"><label>Beneficiary Name</label><input type="text" id="c-bname"></div>
+        <div class="fgf"><label>Account Number</label><input type="text" id="c-accno"></div>
+        <div class="fgf"><label>IFSC Code</label><input type="text" id="c-ifsc" style="text-transform:uppercase"></div>
+        <div class="fgf"><label>Bank Name</label><input type="text" id="c-bank"></div>
+        <div class="fgf"><label>Branch</label><input type="text" id="c-branch"></div>
+        <div class="fgf"><label>Account Type</label>
           <select id="c-actype"><option>Current Account</option><option>Savings Account</option></select>
         </div>
       </div>
       <div class="divider"></div>
-      <div class="sec-label">Signatory</div>
-      <div class="form-grid fg2">
-        <div class="form-group"><label>Name</label><input type="text" id="c-signame" placeholder="PADMAKAR MUSALE"></div>
-        <div class="form-group"><label>Title</label><input type="text" id="c-sigtitle" placeholder="PROPRIETOR"></div>
+      <div class="sl">Signatory</div>
+      <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr">
+        <div class="fgf"><label>Name</label><input type="text" id="c-signame"></div>
+        <div class="fgf"><label>Title</label><input type="text" id="c-sigtitle" placeholder="PROPRIETOR"></div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-const API = 'http://localhost:5000/api';
-let allInvoices = [], supplyType = 'intra', liCount = 0;
-let pendingDeleteId = null;
+// ══════════════════════════════════════════════════════════════════
+// API BASE — auto-detects server URL; works on any device on the
+// same network, not hardcoded to localhost (fixes friend's browser)
+// ══════════════════════════════════════════════════════════════════
+const API = (function() {
+  const h = window.location.hostname;
+  const proto = window.location.protocol;
+  // If served from Flask directly (port 5000), same origin
+  if (window.location.port === '5000') return '';
+  // Otherwise assume Flask is on port 5000, same host
+  return proto + '//' + h + ':5000';
+})() + '/api';
 
-// ── NAVIGATION ────────────────────────────────────────────────────────────────
+// ══ STATE ══════════════════════════════════════════════════════════
+let allInvoices = [], supply = 'intra', liCount = 0;
+
+// ══ NAV ════════════════════════════════════════════════════════════
 function go(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(`page-${id}`).classList.add('active');
-  const tabs = ['dashboard','invoices','new-invoice','data','config'];
-  const i = tabs.indexOf(id);
-  if (i >= 0) document.querySelectorAll('.nav-tab')[i].classList.add('active');
-  if (id==='dashboard')  loadDashboard();
-  if (id==='invoices')   loadInvoices();
-  if (id==='new-invoice') initNewInvoice();
-  if (id==='config')     loadConfig();
-  if (id==='data')       loadAuditLog();
-}
-
-// ── TOAST ─────────────────────────────────────────────────────────────────────
-function toast(msg, type='success') {
-  const t = document.getElementById('toast');
-  const icons = {success:'✅', error:'❌', info:'ℹ️'};
-  t.textContent = `${icons[type]||''} ${msg}`;
-  t.className = `toast ${type} show`;
-  setTimeout(() => t.classList.remove('show'), 3200);
-}
-
-// ── DELETE (inline confirm, no auto-popup) ────────────────────────────────────
-function askDelete(id, label) {
-  // Cancel any existing confirm first
-  cancelDelete();
-  pendingDeleteId = id;
-  document.getElementById('delete-inv-label').textContent = label;
-  document.getElementById('confirm-delete-btn').onclick = () => doDelete(id);
-  document.getElementById('delete-confirm').classList.add('open');
-  document.getElementById('delete-confirm').scrollIntoView({behavior:'smooth', block:'nearest'});
-}
-function cancelDelete() {
-  pendingDeleteId = null;
-  document.getElementById('delete-confirm').classList.remove('open');
-}
-async function doDelete(id) {
-  cancelDelete();
-  const r = await fetch(`${API}/invoices/${id}`, {method:'DELETE'});
-  if (r.ok) { toast('Invoice deleted'); loadInvoices(); }
-  else toast('Delete failed','error');
-}
-
-// ── DASHBOARD ─────────────────────────────────────────────────────────────────
-async function loadDashboard() {
-  const [rep, invs] = await Promise.all([
-    fetch(`${API}/reports/summary`).then(r=>r.json()).catch(()=>({})),
-    fetch(`${API}/invoices`).then(r=>r.json()).catch(()=>[])
-  ]);
-  allInvoices = invs;
-  const gst = (rep.total_cgst||0)+(rep.total_sgst||0)+(rep.total_igst||0);
-  document.getElementById('stats-grid').innerHTML = `
-    <div class="stat-card ac"><div class="stat-label">Total Invoices</div><div class="stat-value">${rep.total_invoices||0}</div><div class="stat-sub">All time</div></div>
-    <div class="stat-card sc"><div class="stat-label">Total Revenue</div><div class="stat-value">₹${fmt(rep.total_value||0)}</div><div class="stat-sub">Incl. GST</div></div>
-    <div class="stat-card"><div class="stat-label">Taxable Value</div><div class="stat-value">₹${fmt(rep.total_taxable||0)}</div><div class="stat-sub">Pre-GST</div></div>
-    <div class="stat-card"><div class="stat-label">Total GST</div><div class="stat-value">₹${fmt(gst)}</div><div class="stat-sub">CGST+SGST+IGST</div></div>
-  `;
-  // Chart
-  const mo = rep.monthly||{}; const months = Object.keys(mo).sort().slice(-6);
-  const vals = months.map(m=>mo[m]?.total||0); const mx = Math.max(...vals,1);
-  const bars = document.getElementById('chart-bars');
-  bars.innerHTML = months.length ? months.map((m,i)=>{
-    const h = Math.max(3,Math.round((vals[i]/mx)*100));
-    return `<div class="bar-group"><div class="bar-val">${vals[i]>0?'₹'+fmtS(vals[i]):''}</div><div class="bar" style="height:${h}px"></div><div class="bar-label">${m}</div></div>`;
-  }).join('') : '<div style="margin:auto;color:var(--muted);font-size:.82rem">No data yet</div>';
-  // Top clients
-  const tc = rep.top_clients||[];
-  document.getElementById('top-clients').innerHTML = tc.length ? tc.map(c=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="font-size:.83rem;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%">${c.name}</div>
-      <div style="font-family:var(--mono);font-size:.78rem;color:var(--saffron);font-weight:700">₹${fmt(c.total)}</div>
-    </div>`).join('') : '<div style="color:var(--muted);font-size:.83rem">No data</div>';
-  // Recent
-  const recent = invs.slice(0,5);
-  document.getElementById('recent-table').innerHTML = recent.length ? `
-    <table><thead><tr><th>Invoice No</th><th>Date</th><th>Client</th><th>Total</th><th>Status</th></tr></thead>
-    <tbody>${recent.map(inv=>`<tr>
-      <td class="mono">${inv.invoice_no}</td><td>${inv.invoice_date||''}</td>
-      <td>${inv.client_name||''}</td><td class="mono">₹${fmt(inv.total||0)}</td>
-      <td><span class="badge badge-${inv.status}">${inv.status}</span></td>
-    </tr>`).join('')}</tbody></table>` :
-    '<div class="empty"><div class="em">📭</div><h3>No invoices yet</h3><p>Create your first invoice</p></div>';
-}
-
-// ── INVOICE LIST ──────────────────────────────────────────────────────────────
-async function loadInvoices() {
-  allInvoices = await fetch(`${API}/invoices`).then(r=>r.json()).catch(()=>[]);
-  renderTable(allInvoices);
-}
-function renderTable(invs) {
-  if (!invs.length) {
-    document.getElementById('invoice-tbody').innerHTML =
-      `<tr><td colspan="8"><div class="empty"><div class="em">📭</div><h3>No invoices found</h3></div></td></tr>`;
-    return;
-  }
-  const gst = inv => (inv.total_cgst||0)+(inv.total_sgst||0)+(inv.total_igst||0);
-  document.getElementById('invoice-tbody').innerHTML = invs.map(inv=>`<tr>
-    <td class="mono" style="font-weight:700">${inv.invoice_no||'—'}</td>
-    <td>${inv.invoice_date||'—'}</td>
-    <td style="font-weight:600">${inv.client_name||'—'}</td>
-    <td class="mono">₹${fmt(inv.total_taxable||0)}</td>
-    <td class="mono" style="color:var(--green)">₹${fmt(gst(inv))}</td>
-    <td class="mono" style="font-weight:700;color:var(--saffron)">₹${fmt(inv.total||0)}</td>
-    <td><span class="badge badge-${inv.status}">${inv.status}</span></td>
-    <td>
-      <div style="display:flex;gap:5px">
-        <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="editInvoice(${inv.id})">✏️</button>
-        <button class="btn btn-ghost btn-sm btn-icon" title="PDF"  onclick="xpdf(${inv.id})">📄</button>
-        <button class="btn btn-ghost btn-sm btn-icon" title="Excel" onclick="xxls(${inv.id})">📊</button>
-        <button class="btn btn-ghost btn-sm btn-icon" title="Delete" onclick="askDelete(${inv.id},'${(inv.invoice_no||'').replace(/'/g,"\\'")}')">🗑️</button>
-      </div>
-    </td>
-  </tr>`).join('');
-}
-function filterInvoices() {
-  const q = document.getElementById('search-input').value.toLowerCase();
-  renderTable(allInvoices.filter(inv =>
-    (inv.invoice_no||'').toLowerCase().includes(q) ||
-    (inv.client_name||'').toLowerCase().includes(q) ||
-    (inv.client_gstin||'').toLowerCase().includes(q)
-  ));
-}
-function xpdf(id) { window.open(`${API}/invoices/${id}/pdf`, '_blank'); }
-function xxls(id) { window.open(`${API}/invoices/${id}/excel`, '_blank'); }
-
-// ── NEW / EDIT INVOICE ────────────────────────────────────────────────────────
-async function initNewInvoice() {
-  document.getElementById('inv-form-title').textContent = 'New Invoice';
-  document.getElementById('editing-id').value = '';
-  document.getElementById('f-invoice-no').value = '';
-  document.getElementById('f-date').value = today();
-  document.getElementById('f-po-no').value = '';
-  document.getElementById('f-client').value = '';
-  document.getElementById('f-client-gstin').value = '';
-  document.getElementById('f-client-addr').value = '';
-  document.getElementById('f-notes').value = '';
-  document.querySelectorAll('.supply-opt').forEach((b,i)=>b.classList.toggle('active',i===0));
-  setSupply('intra', null);
-  liCount = 0;
-  document.getElementById('li-body').innerHTML = `<tr><td colspan="12" class="li-hint">Click "+ Add Item" to begin</td></tr>`;
-  updateSummary();
-  const n = await fetch(`${API}/next-invoice-no`).then(r=>r.json()).catch(()=>({}));
-  if (n.invoice_no) document.getElementById('f-invoice-no').value = n.invoice_no;
-}
-
-async function editInvoice(id) {
-  go('new-invoice');
-  const inv = await fetch(`${API}/invoices/${id}`).then(r=>r.json());
-  document.getElementById('inv-form-title').textContent = `Edit: ${inv.invoice_no}`;
-  document.getElementById('editing-id').value = id;
-  document.getElementById('f-invoice-no').value = inv.invoice_no||'';
-  document.getElementById('f-date').value = inv.invoice_date||'';
-  document.getElementById('f-po-no').value = inv.po_no||'';
-  document.getElementById('f-client').value = inv.client_name||'';
-  document.getElementById('f-client-gstin').value = inv.client_gstin||'';
-  document.getElementById('f-client-addr').value = inv.client_address||'';
-  document.getElementById('f-notes').value = inv.notes||'';
-  const st = inv.supply_type||'intra';
-  document.querySelectorAll('.supply-opt').forEach((b,i)=>b.classList.toggle('active',(i===0&&st==='intra')||(i===1&&st==='inter')));
-  setSupply(st, null);
-  liCount = 0;
-  document.getElementById('li-body').innerHTML = '';
-  (inv.line_items||[]).forEach(item=>addLI(item));
-  if (!(inv.line_items||[]).length)
-    document.getElementById('li-body').innerHTML = `<tr><td colspan="12" class="li-hint">Click "+ Add Item" to begin</td></tr>`;
-  updateSummary();
-}
-
-function setSupply(type, btn) {
-  supplyType = type;
-  document.getElementById('f-supply').value = type;
-  if (btn) { document.querySelectorAll('.supply-opt').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
-  const intra = type==='intra';
-  document.getElementById('th1').textContent = intra?'CGST%':'IGST%';
-  document.getElementById('th2').textContent = intra?'CGST Amt':'IGST Amt';
-  document.getElementById('th3').style.display = intra?'':'none';
-  document.getElementById('th4').style.display = intra?'':'none';
-  document.getElementById('s-cgst-row').style.display = intra?'':'none';
-  document.getElementById('s-sgst-row').style.display = intra?'':'none';
-  document.getElementById('s-igst-row').style.display = intra?'none':'';
-  document.querySelectorAll('.li-sgst-col').forEach(el=>el.style.display=intra?'':'none');
-  updateSummary();
-}
-
-function addLI(data=null) {
-  if (liCount>=20) { toast('Max 20 line items','error'); return; }
-  const hint = document.querySelector('.li-hint');
-  if (hint) hint.closest('tr').remove();
-  liCount++;
-  const i = liCount;
-  const st = supplyType;
-  const sd = st==='intra'?'':'display:none';
-  const tr = document.createElement('tr');
-  tr.id = `li-${i}`; tr.dataset.idx = i;
-  tr.innerHTML = `
-    <td style="text-align:center;font-weight:700;color:var(--muted);font-size:.78rem">${i}</td>
-    <td><input type="text" placeholder="Description" class="li-desc" data-r="${i}" value="${esc(data?.description)}"></td>
-    <td><input type="text" placeholder="998739" class="li-hsn" data-r="${i}" value="${esc(data?.hsn_sac)}"></td>
-    <td><input type="number" placeholder="0" class="li-qty" data-r="${i}" value="${data?.qty??''}" oninput="calcRow(${i})"></td>
-    <td><input type="text" placeholder="Nos" class="li-unit" data-r="${i}" value="${esc(data?.unit)}"></td>
-    <td><input type="number" placeholder="0.00" class="li-rate" data-r="${i}" value="${data?.rate??''}" oninput="calcRow(${i})"></td>
-    <td><input type="text" class="calc-field li-tv" data-r="${i}" readonly value="${data?.taxable_value??'0.00'}"></td>
-    <td><input type="number" placeholder="9" class="li-t1r" data-r="${i}" value="${data?(st==='intra'?data.cgst_rate:data.igst_rate):9}" oninput="calcRow(${i})" style="max-width:55px"></td>
-    <td><input type="text" class="calc-field li-t1a" data-r="${i}" readonly value="${data?(st==='intra'?data.cgst_amt:data.igst_amt):'0.00'}"></td>
-    <td class="li-sgst-col" style="${sd}"><input type="number" placeholder="9" class="li-sgr" data-r="${i}" value="${data?.sgst_rate??9}" oninput="calcRow(${i})" style="max-width:55px"></td>
-    <td class="li-sgst-col" style="${sd}"><input type="text" class="calc-field li-sga" data-r="${i}" readonly value="${data?.sgst_amt??'0.00'}"></td>
-    <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeLI(${i})" title="Remove">✕</button></td>
-  `;
-  document.getElementById('li-body').appendChild(tr);
-  if (data) calcRow(i);
-  document.querySelector(`#li-${i} .li-desc`)?.focus();
-}
-
-function esc(v) { return v!=null?String(v).replace(/"/g,'&quot;'):''; }
-function removeLI(i) {
-  document.getElementById(`li-${i}`)?.remove();
-  if (!document.querySelectorAll('#li-body tr[data-idx]').length) {
-    document.getElementById('li-body').innerHTML=`<tr><td colspan="12" class="li-hint">Click "+ Add Item" to begin</td></tr>`;
-    liCount=0;
-  }
-  updateSummary();
-}
-
-function calcRow(i) {
-  const qty  = parseFloat(q(`.li-qty[data-r="${i}"]`)?.value)||0;
-  const rate = parseFloat(q(`.li-rate[data-r="${i}"]`)?.value)||0;
-  const tv   = qty*rate;
-  const t1r  = parseFloat(q(`.li-t1r[data-r="${i}"]`)?.value)||0;
-  const sgr  = parseFloat(q(`.li-sgr[data-r="${i}"]`)?.value)||0;
-  const t1a  = Math.round(tv*t1r/100*100)/100;
-  const sga  = Math.round(tv*sgr/100*100)/100;
-  const set  = (sel,v) => { const el=q(sel); if(el) el.value=v; };
-  set(`.li-tv[data-r="${i}"]`,  tv.toFixed(2));
-  set(`.li-t1a[data-r="${i}"]`, t1a.toFixed(2));
-  set(`.li-sga[data-r="${i}"]`, sga.toFixed(2));
-  updateSummary();
-}
-
-function updateSummary() {
-  let tv=0,cg=0,sg=0,ig=0;
-  document.querySelectorAll('#li-body tr[data-idx]').forEach(row=>{
-    const i=row.dataset.idx;
-    tv += parseFloat(q(`.li-tv[data-r="${i}"]`)?.value)||0;
-    const t1=(parseFloat(q(`.li-t1a[data-r="${i}"]`)?.value)||0);
-    const s2=(parseFloat(q(`.li-sga[data-r="${i}"]`)?.value)||0);
-    if(supplyType==='intra'){cg+=t1;sg+=s2;}else{ig+=t1;}
+  document.getElementById('page-' + id).classList.add('active');
+  // Update both top and bottom nav tabs
+  document.querySelectorAll('.ttab, .btab').forEach(t => {
+    t.classList.toggle('active', t.dataset.page === id);
   });
-  const grand=tv+cg+sg+ig; const rounded=Math.round(grand); const roff=rounded-grand;
-  q('#s-tv').textContent   = '₹'+n2s(tv);
-  q('#s-cgst').textContent = '₹'+n2s(cg);
-  q('#s-sgst').textContent = '₹'+n2s(sg);
-  q('#s-igst').textContent = '₹'+n2s(ig);
-  q('#s-roff').textContent = (roff>=0?'+':'')+n2s(roff);
-  q('#s-total').textContent= '₹'+fmt(rounded);
-  q('#s-words').textContent= numWords(rounded)+' Only';
+  if (id === 'dashboard')  loadDashboard();
+  if (id === 'invoices')   loadInvoices();
+  if (id === 'new-invoice') initForm();
+  if (id === 'config')     loadConfig();
+  if (id === 'data')       loadAudit();
+  // Scroll to top on navigation
+  window.scrollTo(0, 0);
 }
 
+// Wire up all nav buttons via event delegation (no inline onclick on nav)
+['top-tabs','bot-tabs'].forEach(navId => {
+  const nav = document.getElementById(navId);
+  if (nav) nav.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-page]');
+    if (btn) go(btn.dataset.page);
+  });
+});
+
+// ══ TOAST (no confirm() — works in all browsers) ══════════════════
+function toast(msg, type) {
+  type = type || 'success';
+  var t = document.getElementById('toast');
+  var icons = {success:'✅', error:'❌', info:'ℹ️'};
+  t.textContent = (icons[type] || '') + ' ' + msg;
+  t.className = 'toast ' + type + ' show';
+  clearTimeout(t._tid);
+  t._tid = setTimeout(function() { t.classList.remove('show'); }, 3200);
+}
+
+// ══ DELETE CONFIRM (inline, no window.confirm) ════════════════════
+function askDel(id, label) {
+  cancelDel();
+  document.getElementById('del-label').textContent = label;
+  document.getElementById('del-confirm-btn').onclick = function() { doDel(id); };
+  document.getElementById('del-box').classList.add('open');
+}
+function cancelDel() {
+  document.getElementById('del-box').classList.remove('open');
+}
+function doDel(id) {
+  cancelDel();
+  fetch(API + '/invoices/' + id, {method:'DELETE'})
+    .then(function(r) {
+      if (r.ok) { toast('Invoice deleted'); loadInvoices(); }
+      else toast('Delete failed','error');
+    }).catch(function() { toast('Network error','error'); });
+}
+
+// ══ HELPERS ════════════════════════════════════════════════════════
 function q(s) { return document.querySelector(s); }
-function n2s(n) { return n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function qi(id) { return document.getElementById(id); }
 function fmt(n) { return Math.round(n).toLocaleString('en-IN'); }
+function n2s(n) { return n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtS(n) {
-  if(n>=1e7) return (n/1e7).toFixed(1)+'Cr';
-  if(n>=1e5) return (n/1e5).toFixed(1)+'L';
-  if(n>=1e3) return (n/1e3).toFixed(0)+'K';
+  if (n >= 1e7) return (n/1e7).toFixed(1)+'Cr';
+  if (n >= 1e5) return (n/1e5).toFixed(1)+'L';
+  if (n >= 1e3) return (n/1e3).toFixed(0)+'K';
   return Math.round(n)+'';
 }
 function today() { return new Date().toISOString().split('T')[0]; }
+function esc(v) { return v != null ? String(v).replace(/"/g,'&quot;').replace(/</g,'&lt;') : ''; }
 
 function numWords(n) {
-  if(!n) return 'Zero Rupees';
-  const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
+  if (!n) return 'Zero Rupees';
+  var ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
     'Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
-  const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
-  function conv(n) {
-    if(n<20) return ones[n];
-    if(n<100) return tens[Math.floor(n/10)]+(n%10?' '+ones[n%10]:'');
-    if(n<1000) return ones[Math.floor(n/100)]+' Hundred'+(n%100?' '+conv(n%100):'');
-    if(n<100000) return conv(Math.floor(n/1000))+' Thousand'+(n%1000?' '+conv(n%1000):'');
-    if(n<10000000) return conv(Math.floor(n/100000))+' Lakh'+(n%100000?' '+conv(n%100000):'');
-    return conv(Math.floor(n/10000000))+' Crore'+(n%10000000?' '+conv(n%10000000):'');
+  var tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function c(n) {
+    if (n<20) return ones[n];
+    if (n<100) return tens[Math.floor(n/10)]+(n%10?' '+ones[n%10]:'');
+    if (n<1000) return ones[Math.floor(n/100)]+' Hundred'+(n%100?' '+c(n%100):'');
+    if (n<100000) return c(Math.floor(n/1000))+' Thousand'+(n%1000?' '+c(n%1000):'');
+    if (n<10000000) return c(Math.floor(n/100000))+' Lakh'+(n%100000?' '+c(n%100000):'');
+    return c(Math.floor(n/10000000))+' Crore'+(n%10000000?' '+c(n%10000000):'');
   }
-  return 'Rupees '+conv(Math.round(n));
+  return 'Rupees '+c(Math.round(n));
 }
 
-async function saveInvoice(status) {
-  const invId = document.getElementById('editing-id').value;
-  const items = [];
-  let sr=1;
-  document.querySelectorAll('#li-body tr[data-idx]').forEach(row=>{
-    const i=row.dataset.idx;
-    const t1r=parseFloat(q(`.li-t1r[data-r="${i}"]`)?.value)||0;
+// ══ DASHBOARD ══════════════════════════════════════════════════════
+function loadDashboard() {
+  Promise.all([
+    fetch(API+'/reports/summary').then(function(r){return r.json();}).catch(function(){return {};}),
+    fetch(API+'/invoices').then(function(r){return r.json();}).catch(function(){return [];})
+  ]).then(function(res) {
+    var rep=res[0], invs=res[1];
+    allInvoices = invs;
+    var gst=(rep.total_cgst||0)+(rep.total_sgst||0)+(rep.total_igst||0);
+    qi('sgrid').innerHTML =
+      '<div class="sc ac"><div class="sc-lbl">Total Invoices</div><div class="sc-val">'+( rep.total_invoices||0)+'</div><div class="sc-sub">All time</div></div>'+
+      '<div class="sc gc"><div class="sc-lbl">Total Revenue</div><div class="sc-val">₹'+fmt(rep.total_value||0)+'</div><div class="sc-sub">Incl. GST</div></div>'+
+      '<div class="sc"><div class="sc-lbl">Taxable Value</div><div class="sc-val">₹'+fmt(rep.total_taxable||0)+'</div><div class="sc-sub">Pre-GST</div></div>'+
+      '<div class="sc"><div class="sc-lbl">Total GST</div><div class="sc-val">₹'+fmt(gst)+'</div><div class="sc-sub">CGST+SGST+IGST</div></div>';
+    // Chart
+    var mo=rep.monthly||{}, months=Object.keys(mo).sort().slice(-6);
+    var vals=months.map(function(m){return mo[m]&&mo[m].total||0;});
+    var mx=Math.max.apply(null,vals.concat([1]));
+    qi('chart-bars').innerHTML = months.length ? months.map(function(m,i){
+      var h=Math.max(3,Math.round((vals[i]/mx)*96));
+      return '<div class="bg"><div class="bv">'+(vals[i]>0?'₹'+fmtS(vals[i]):'')+'</div><div class="bar" style="height:'+h+'px"></div><div class="bl">'+m+'</div></div>';
+    }).join('') : '<div style="margin:auto;color:var(--muted);font-size:.8rem">No data yet</div>';
+    // Top clients
+    var tc=rep.top_clients||[];
+    qi('top-clients').innerHTML = tc.length ? tc.map(function(c){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">'+
+        '<div style="font-size:.81rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58%">'+esc(c.name)+'</div>'+
+        '<div style="font-family:var(--mono);font-size:.76rem;color:var(--saffron);font-weight:700">₹'+fmt(c.total)+'</div></div>';
+    }).join('') : '<div style="color:var(--muted);font-size:.8rem">No clients yet</div>';
+    // Recent
+    var recent=invs.slice(0,5);
+    qi('recent-table').innerHTML = recent.length ?
+      '<table><thead><tr><th>Invoice No</th><th>Date</th><th>Client</th><th>Total</th><th>Status</th></tr></thead><tbody>'+
+      recent.map(function(inv){return '<tr><td class="mono">'+esc(inv.invoice_no)+'</td><td>'+esc(inv.invoice_date||'')+'</td><td>'+esc(inv.client_name||'')+'</td><td class="mono">₹'+fmt(inv.total||0)+'</td><td><span class="badge badge-'+esc(inv.status)+'">'+esc(inv.status)+'</span></td></tr>';}).join('')+
+      '</tbody></table>' :
+      '<div class="empty"><div class="em">📭</div><p>No invoices yet</p></div>';
+  });
+}
+
+// ══ INVOICES LIST ══════════════════════════════════════════════════
+function loadInvoices() {
+  fetch(API+'/invoices').then(function(r){return r.json();}).then(function(invs){
+    allInvoices = invs;
+    renderTable(invs);
+  }).catch(function(){ toast('Could not load invoices','error'); });
+}
+
+function renderTable(invs) {
+  if (!invs.length) {
+    qi('inv-tbody').innerHTML='<tr><td colspan="8"><div class="empty"><div class="em">📭</div><p>No invoices found</p></div></td></tr>';
+    return;
+  }
+  qi('inv-tbody').innerHTML = invs.map(function(inv){
+    var gst=(inv.total_cgst||0)+(inv.total_sgst||0)+(inv.total_igst||0);
+    var no=esc(inv.invoice_no||'—');
+    return '<tr>'+
+      '<td class="mono" style="font-weight:700">'+no+'</td>'+
+      '<td>'+esc(inv.invoice_date||'—')+'</td>'+
+      '<td style="font-weight:600">'+esc(inv.client_name||'—')+'</td>'+
+      '<td class="mono">₹'+fmt(inv.total_taxable||0)+'</td>'+
+      '<td class="mono" style="color:var(--green)">₹'+fmt(gst)+'</td>'+
+      '<td class="mono" style="font-weight:700;color:var(--saffron)">₹'+fmt(inv.total||0)+'</td>'+
+      '<td><span class="badge badge-'+esc(inv.status)+'">'+esc(inv.status)+'</span></td>'+
+      '<td><div style="display:flex;gap:4px">'+
+        '<button class="btn btn-ghost btn-icon btn-sm" onclick="editInvoice('+inv.id+')" title="Edit">✏️</button>'+
+        '<button class="btn btn-ghost btn-icon btn-sm" onclick="xpdf('+inv.id+')" title="PDF">📄</button>'+
+        '<button class="btn btn-ghost btn-icon btn-sm" onclick="xxls('+inv.id+')" title="Excel">📊</button>'+
+        '<button class="btn btn-ghost btn-icon btn-sm" onclick="askDel('+inv.id+',\''+no+'\')" title="Delete">🗑️</button>'+
+      '</div></td></tr>';
+  }).join('');
+}
+
+function filterInvoices() {
+  var q2=qi('search-input').value.toLowerCase();
+  renderTable(allInvoices.filter(function(inv){
+    return (inv.invoice_no||'').toLowerCase().indexOf(q2)>=0||
+           (inv.client_name||'').toLowerCase().indexOf(q2)>=0;
+  }));
+}
+
+function xpdf(id){ window.open(API+'/invoices/'+id+'/pdf','_blank'); }
+function xxls(id){ window.open(API+'/invoices/'+id+'/excel','_blank'); }
+
+// ══ INVOICE FORM ════════════════════════════════════════════════════
+function initForm() {
+  qi('inv-title').textContent='New Invoice';
+  qi('edit-id').value='';
+  qi('f-no').value=''; qi('f-date').value=today();
+  qi('f-po').value=''; qi('f-client').value='';
+  qi('f-cgstin').value=''; qi('f-caddr').value=''; qi('f-notes').value='';
+  qi('sopt-intra').classList.add('active'); qi('sopt-inter').classList.remove('active');
+  setSupply('intra');
+  liCount=0; qi('li-body').innerHTML='<tr><td colspan="12" class="li-hint">Tap "+ Add Item" to begin</td></tr>';
+  updateSum();
+  fetch(API+'/next-invoice-no').then(function(r){return r.json();}).then(function(d){
+    if(d.invoice_no) qi('f-no').value=d.invoice_no;
+  }).catch(function(){});
+}
+
+function editInvoice(id) {
+  go('new-invoice');
+  fetch(API+'/invoices/'+id).then(function(r){return r.json();}).then(function(inv){
+    qi('inv-title').textContent='Edit: '+inv.invoice_no;
+    qi('edit-id').value=id;
+    qi('f-no').value=inv.invoice_no||'';
+    qi('f-date').value=inv.invoice_date||'';
+    qi('f-po').value=inv.po_no||'';
+    qi('f-client').value=inv.client_name||'';
+    qi('f-cgstin').value=inv.client_gstin||'';
+    qi('f-caddr').value=inv.client_address||'';
+    qi('f-notes').value=inv.notes||'';
+    var st=inv.supply_type||'intra';
+    qi('sopt-intra').classList.toggle('active',st==='intra');
+    qi('sopt-inter').classList.toggle('active',st==='inter');
+    setSupply(st);
+    liCount=0; qi('li-body').innerHTML='';
+    (inv.line_items||[]).forEach(function(item){ addLI(item); });
+    if(!(inv.line_items||[]).length) qi('li-body').innerHTML='<tr><td colspan="12" class="li-hint">Tap "+ Add Item" to begin</td></tr>';
+    updateSum();
+  }).catch(function(){ toast('Could not load invoice','error'); });
+}
+
+function setSupply(type) {
+  supply=type;
+  qi('f-supply').value=type;
+  qi('sopt-intra').classList.toggle('active',type==='intra');
+  qi('sopt-inter').classList.toggle('active',type==='inter');
+  var intra=type==='intra';
+  qi('th1').textContent=intra?'CGST%':'IGST%';
+  qi('th2').textContent=intra?'CGST Amt':'IGST Amt';
+  qi('th3').style.display=intra?'':'none';
+  qi('th4').style.display=intra?'':'none';
+  qi('s-cgst-r').style.display=intra?'':'none';
+  qi('s-sgst-r').style.display=intra?'':'none';
+  qi('s-igst-r').style.display=intra?'none':'';
+  document.querySelectorAll('.sgst-col').forEach(function(el){ el.style.display=intra?'':'none'; });
+  updateSum();
+}
+
+function addLI(data) {
+  if (liCount>=20){ toast('Max 20 line items','error'); return; }
+  var hint=q('.li-hint');
+  if(hint) hint.closest('tr').remove();
+  liCount++;
+  var i=liCount, st=supply, sd=st==='intra'?'':'display:none';
+  var t1v=data?(st==='intra'?data.cgst_rate:data.igst_rate):9;
+  var t1a=data?(st==='intra'?data.cgst_amt:data.igst_amt):'0.00';
+  var tr=document.createElement('tr');
+  tr.id='li-'+i; tr.dataset.idx=i;
+  tr.innerHTML=
+    '<td style="text-align:center;font-weight:700;color:var(--muted);font-size:.75rem">'+i+'</td>'+
+    '<td><input type="text" placeholder="Service description" class="li-d" data-r="'+i+'" value="'+esc(data&&data.description)+'"></td>'+
+    '<td><input type="text" placeholder="998739" class="li-h" data-r="'+i+'" value="'+esc(data&&data.hsn_sac)+'"></td>'+
+    '<td><input type="number" placeholder="0" class="li-q" data-r="'+i+'" value="'+(data&&data.qty!=null?data.qty:'')+'" oninput="calc('+i+')"></td>'+
+    '<td><input type="text" placeholder="Nos" class="li-u" data-r="'+i+'" value="'+esc(data&&data.unit)+'"></td>'+
+    '<td><input type="number" placeholder="0.00" class="li-r" data-r="'+i+'" value="'+(data&&data.rate!=null?data.rate:'')+'" oninput="calc('+i+')"></td>'+
+    '<td><input type="text" class="calc li-tv" data-r="'+i+'" readonly value="'+(data&&data.taxable_value!=null?data.taxable_value:'0.00')+'"></td>'+
+    '<td><input type="number" placeholder="9" class="li-t1r" data-r="'+i+'" value="'+t1v+'" oninput="calc('+i+')" style="max-width:52px"></td>'+
+    '<td><input type="text" class="calc li-t1a" data-r="'+i+'" readonly value="'+t1a+'"></td>'+
+    '<td class="sgst-col" style="'+sd+'"><input type="number" placeholder="9" class="li-sgr" data-r="'+i+'" value="'+(data&&data.sgst_rate!=null?data.sgst_rate:9)+'" oninput="calc('+i+')" style="max-width:52px"></td>'+
+    '<td class="sgst-col" style="'+sd+'"><input type="text" class="calc li-sga" data-r="'+i+'" readonly value="'+(data&&data.sgst_amt!=null?data.sgst_amt:'0.00')+'"></td>'+
+    '<td><button class="btn btn-danger btn-icon btn-sm" onclick="remLI('+i+')" style="padding:5px">✕</button></td>';
+  qi('li-body').appendChild(tr);
+  if(data) calc(i);
+  qi('li-body').querySelector('.li-d[data-r="'+i+'"]').focus();
+}
+
+function remLI(i) {
+  var el=qi('li-'+i); if(el) el.remove();
+  if(!document.querySelectorAll('#li-body tr[data-idx]').length){
+    qi('li-body').innerHTML='<tr><td colspan="12" class="li-hint">Tap "+ Add Item" to begin</td></tr>';
+    liCount=0;
+  }
+  updateSum();
+}
+
+function calc(i) {
+  var qty=parseFloat((q('.li-q[data-r="'+i+'"]')||{}).value)||0;
+  var rate=parseFloat((q('.li-r[data-r="'+i+'"]')||{}).value)||0;
+  var tv=qty*rate;
+  var t1r=parseFloat((q('.li-t1r[data-r="'+i+'"]')||{}).value)||0;
+  var sgr=parseFloat((q('.li-sgr[data-r="'+i+'"]')||{}).value)||0;
+  var t1a=Math.round(tv*t1r/100*100)/100;
+  var sga=Math.round(tv*sgr/100*100)/100;
+  function sv(sel,v){ var el=q(sel); if(el) el.value=v; }
+  sv('.li-tv[data-r="'+i+'"]',tv.toFixed(2));
+  sv('.li-t1a[data-r="'+i+'"]',t1a.toFixed(2));
+  sv('.li-sga[data-r="'+i+'"]',sga.toFixed(2));
+  updateSum();
+}
+
+function updateSum() {
+  var tv=0,cg=0,sg=0,ig=0;
+  document.querySelectorAll('#li-body tr[data-idx]').forEach(function(row){
+    var i=row.dataset.idx;
+    tv+=parseFloat((q('.li-tv[data-r="'+i+'"]')||{}).value)||0;
+    var t1=parseFloat((q('.li-t1a[data-r="'+i+'"]')||{}).value)||0;
+    var s2=parseFloat((q('.li-sga[data-r="'+i+'"]')||{}).value)||0;
+    if(supply==='intra'){cg+=t1;sg+=s2;}else{ig+=t1;}
+  });
+  var grand=tv+cg+sg+ig, rounded=Math.round(grand), roff=rounded-grand;
+  qi('s-tv').textContent='₹'+n2s(tv);
+  qi('s-cgst').textContent='₹'+n2s(cg);
+  qi('s-sgst').textContent='₹'+n2s(sg);
+  qi('s-igst').textContent='₹'+n2s(ig);
+  qi('s-roff').textContent=(roff>=0?'+':'')+n2s(roff);
+  qi('s-tot').textContent='₹'+fmt(rounded);
+  qi('s-words').textContent=numWords(rounded)+' Only';
+}
+
+function saveInvoice(status) {
+  var invId=qi('edit-id').value;
+  var items=[]; var sr=1;
+  document.querySelectorAll('#li-body tr[data-idx]').forEach(function(row){
+    var i=row.dataset.idx;
+    var t1r=parseFloat((q('.li-t1r[data-r="'+i+'"]')||{}).value)||0;
     items.push({
       sr_no:sr++,
-      description: q(`.li-desc[data-r="${i}"]`)?.value||'',
-      hsn_sac: q(`.li-hsn[data-r="${i}"]`)?.value||'',
-      qty: parseFloat(q(`.li-qty[data-r="${i}"]`)?.value)||0,
-      unit: q(`.li-unit[data-r="${i}"]`)?.value||'',
-      rate: parseFloat(q(`.li-rate[data-r="${i}"]`)?.value)||0,
-      taxable_value: parseFloat(q(`.li-tv[data-r="${i}"]`)?.value)||0,
-      cgst_rate: supplyType==='intra'?t1r:0,
-      cgst_amt:  supplyType==='intra'?(parseFloat(q(`.li-t1a[data-r="${i}"]`)?.value)||0):0,
-      sgst_rate: supplyType==='intra'?(parseFloat(q(`.li-sgr[data-r="${i}"]`)?.value)||0):0,
-      sgst_amt:  supplyType==='intra'?(parseFloat(q(`.li-sga[data-r="${i}"]`)?.value)||0):0,
-      igst_rate: supplyType==='inter'?t1r:0,
-      igst_amt:  supplyType==='inter'?(parseFloat(q(`.li-t1a[data-r="${i}"]`)?.value)||0):0,
+      description:(q('.li-d[data-r="'+i+'"]')||{}).value||'',
+      hsn_sac:(q('.li-h[data-r="'+i+'"]')||{}).value||'',
+      qty:parseFloat((q('.li-q[data-r="'+i+'"]')||{}).value)||0,
+      unit:(q('.li-u[data-r="'+i+'"]')||{}).value||'',
+      rate:parseFloat((q('.li-r[data-r="'+i+'"]')||{}).value)||0,
+      taxable_value:parseFloat((q('.li-tv[data-r="'+i+'"]')||{}).value)||0,
+      cgst_rate:supply==='intra'?t1r:0,
+      cgst_amt:supply==='intra'?(parseFloat((q('.li-t1a[data-r="'+i+'"]')||{}).value)||0):0,
+      sgst_rate:supply==='intra'?(parseFloat((q('.li-sgr[data-r="'+i+'"]')||{}).value)||0):0,
+      sgst_amt:supply==='intra'?(parseFloat((q('.li-sga[data-r="'+i+'"]')||{}).value)||0):0,
+      igst_rate:supply==='inter'?t1r:0,
+      igst_amt:supply==='inter'?(parseFloat((q('.li-t1a[data-r="'+i+'"]')||{}).value)||0):0
     });
   });
-  const body = {
-    invoice_no: document.getElementById('f-invoice-no').value,
-    invoice_date: document.getElementById('f-date').value,
-    po_no: document.getElementById('f-po-no').value,
-    client_name: document.getElementById('f-client').value,
-    client_gstin: document.getElementById('f-client-gstin').value,
-    client_address: document.getElementById('f-client-addr').value,
-    supply_type: supplyType,
-    notes: document.getElementById('f-notes').value,
-    status, line_items: items,
+  var no=qi('f-no').value, dt=qi('f-date').value, cl=qi('f-client').value;
+  if(!no||!dt||!cl){ toast('Invoice No, Date and Client Name are required','error'); return; }
+  var body={invoice_no:no,invoice_date:dt,po_no:qi('f-po').value,
+    client_name:cl,client_gstin:qi('f-cgstin').value,client_address:qi('f-caddr').value,
+    supply_type:supply,notes:qi('f-notes').value,status:status,line_items:items};
+  var url=invId?API+'/invoices/'+invId:API+'/invoices';
+  var method=invId?'PUT':'POST';
+  fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,data:d}; }); })
+    .then(function(res){
+      if(res.ok){
+        var actualId=invId||res.data.id;
+        qi('edit-id').value=actualId;
+        qi('inv-title').textContent='Edit: '+no;
+        toast(invId?'Invoice updated!':'Invoice created!');
+        // Use a non-blocking prompt instead of confirm()
+        showExportPrompt(actualId);
+      } else {
+        toast(res.data.error||'Save failed','error');
+      }
+    }).catch(function(err){ toast('Network error — is the server running?','error'); });
+}
+
+// Non-blocking export prompt (replaces browser confirm())
+function showExportPrompt(id) {
+  var existing=qi('export-prompt');
+  if(existing) existing.remove();
+  var div=document.createElement('div');
+  div.id='export-prompt';
+  div.style.cssText='position:fixed;bottom:calc(var(--bot-h)+70px);right:16px;z-index:9998;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:.83rem;max-width:260px';
+  div.innerHTML='<div style="font-weight:700;margin-bottom:8px">Invoice saved! Export?</div>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button class="btn btn-outline btn-sm" onclick="this.closest(\'#export-prompt\').remove()">Later</button>'+
+    '<button class="btn btn-primary btn-sm" onclick="xpdf('+id+');this.closest(\'#export-prompt\').remove()">📄 PDF</button>'+
+    '<button class="btn btn-blue btn-sm" onclick="xxls('+id+');this.closest(\'#export-prompt\').remove()">📊 XLS</button>'+
+    '</div>';
+  document.body.appendChild(div);
+  setTimeout(function(){ if(qi('export-prompt')) qi('export-prompt').remove(); }, 8000);
+}
+
+// ══ CONFIG ══════════════════════════════════════════════════════════
+function loadConfig() {
+  fetch(API+'/config').then(function(r){return r.json();}).then(function(c){
+    var map={'c-name':'company_name','c-gstin':'gstin','c-contact':'contact','c-email':'email',
+      'c-addr':'address','c-state':'state_code','c-bname':'beneficiary_name',
+      'c-accno':'account_no','c-ifsc':'ifsc','c-bank':'bank_name','c-branch':'branch',
+      'c-actype':'account_type','c-signame':'signatory_name','c-sigtitle':'signatory_title'};
+    Object.keys(map).forEach(function(el){
+      var e=qi(el); if(e&&c[map[el]]) e.value=c[map[el]];
+    });
+  }).catch(function(){});
+}
+
+function saveConfig() {
+  var data={
+    company_name:qi('c-name').value,gstin:qi('c-gstin').value,
+    contact:qi('c-contact').value,email:qi('c-email').value,
+    address:qi('c-addr').value,state_code:qi('c-state').value,
+    beneficiary_name:qi('c-bname').value,account_no:qi('c-accno').value,
+    ifsc:qi('c-ifsc').value,bank_name:qi('c-bank').value,
+    branch:qi('c-branch').value,account_type:qi('c-actype').value,
+    signatory_name:qi('c-signame').value,signatory_title:qi('c-sigtitle').value
   };
-  if (!body.invoice_no||!body.client_name||!body.invoice_date) {
-    toast('Invoice No, Date and Client Name are required','error'); return;
-  }
-  const url  = invId?`${API}/invoices/${invId}`:`${API}/invoices`;
-  const meth = invId?'PUT':'POST';
-  const r = await fetch(url,{method:meth,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if (r.ok) {
-    const data=await r.json();
-    const actualId=invId||data.id;
-    document.getElementById('editing-id').value=actualId;
-    document.getElementById('inv-form-title').textContent=`Edit: ${body.invoice_no}`;
-    toast(invId?'Invoice updated!':'Invoice created!');
-    setTimeout(()=>{ if(confirm('Export as PDF?')) xpdf(actualId); }, 400);
-  } else {
-    const err=await r.json().catch(()=>({}));
-    toast(err.error||'Save failed','error');
-  }
+  fetch(API+'/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+    .then(function(r){
+      if(r.ok) toast('Settings saved!'); else toast('Save failed','error');
+    }).catch(function(){ toast('Network error','error'); });
 }
 
-// ── CONFIG ────────────────────────────────────────────────────────────────────
-async function loadConfig() {
-  const c = await fetch(`${API}/config`).then(r=>r.json()).catch(()=>({}));
-  const map = {
-    'c-name':'company_name','c-gstin':'gstin','c-contact':'contact','c-email':'email',
-    'c-address':'address','c-state':'state_code','c-bname':'beneficiary_name',
-    'c-accno':'account_no','c-ifsc':'ifsc','c-bank':'bank_name','c-branch':'branch',
-    'c-actype':'account_type','c-signame':'signatory_name','c-sigtitle':'signatory_title'
+// ══ BACKUP / RESTORE ════════════════════════════════════════════════
+function dlBackup(){ window.open(API+'/backup','_blank'); }
+function dlCSV(){ window.open(API+'/export-csv','_blank'); }
+
+// File restore — using FileReader for max browser compatibility
+function doRestore(file) {
+  if(!file) return;
+  if(!file.name.toLowerCase().endsWith('.json') && file.type !== 'application/json'){
+    toast('Please select a .json backup file','error'); return;
+  }
+  qi('restore-status').innerHTML='<span style="color:var(--muted)">⏳ Reading file…</span>';
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var text=e.target.result;
+    qi('restore-status').innerHTML='<span style="color:var(--muted)">⏳ Uploading…</span>';
+    // Send as JSON directly instead of FormData (more compatible)
+    var parsed;
+    try{ parsed=JSON.parse(text); }
+    catch(err){ qi('restore-status').innerHTML='<span style="color:#DC2626">❌ Invalid JSON file</span>'; return; }
+    fetch(API+'/restore-json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(parsed)})
+      .then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d};});})
+      .then(function(res){
+        if(res.ok){
+          qi('restore-status').innerHTML='<span style="color:var(--green)">✅ Restored: '+res.data.created+' added, '+res.data.skipped+' skipped</span>';
+          toast('Restore complete: '+res.data.created+' added, '+res.data.skipped+' skipped');
+          loadAudit();
+        } else {
+          qi('restore-status').innerHTML='<span style="color:#DC2626">❌ '+esc(res.data.error||'Restore failed')+'</span>';
+          toast(res.data.error||'Restore failed','error');
+        }
+      }).catch(function(){ qi('restore-status').innerHTML='<span style="color:#DC2626">❌ Network error</span>'; toast('Network error','error'); });
   };
-  Object.entries(map).forEach(([el,key])=>{ const e=document.getElementById(el); if(e&&c[key]) e.value=c[key]; });
+  reader.onerror=function(){ toast('Could not read file','error'); };
+  reader.readAsText(file);
 }
 
-async function saveConfig() {
-  const data = {
-    company_name: document.getElementById('c-name').value,
-    gstin:        document.getElementById('c-gstin').value,
-    contact:      document.getElementById('c-contact').value,
-    email:        document.getElementById('c-email').value,
-    address:      document.getElementById('c-address').value,
-    state_code:   document.getElementById('c-state').value,
-    beneficiary_name: document.getElementById('c-bname').value,
-    account_no:   document.getElementById('c-accno').value,
-    ifsc:         document.getElementById('c-ifsc').value,
-    bank_name:    document.getElementById('c-bank').value,
-    branch:       document.getElementById('c-branch').value,
-    account_type: document.getElementById('c-actype').value,
-    signatory_name:  document.getElementById('c-signame').value,
-    signatory_title: document.getElementById('c-sigtitle').value,
-  };
-  const r = await fetch(`${API}/config`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-  if (r.ok) toast('Settings saved!'); else toast('Save failed','error');
-}
+// Wire up file input — button triggers hidden input
+document.addEventListener('DOMContentLoaded', function() {
+  var btn=qi('pick-file-btn');
+  var inp=qi('restore-input');
+  var upz=qi('upz');
 
-// ── BACKUP / RESTORE ──────────────────────────────────────────────────────────
-function downloadBackup() { window.open(`${API}/backup`, '_blank'); }
-function downloadCSV()    { window.open(`${API}/export-csv`, '_blank'); }
+  if(btn) btn.addEventListener('click', function(e){ e.preventDefault(); inp.click(); });
+  if(upz) upz.addEventListener('click', function(){ inp.click(); });
+  if(inp) inp.addEventListener('change', function(){ if(this.files[0]) doRestore(this.files[0]); this.value=''; });
 
-async function restoreBackup(file) {
-  if (!file) return;
-  const status = document.getElementById('restore-status');
-  status.innerHTML = '<span style="color:var(--muted)">⏳ Restoring…</span>';
-  const fd = new FormData(); fd.append('file', file);
-  const r = await fetch(`${API}/restore`, {method:'POST', body: fd});
-  const data = await r.json();
-  if (r.ok) {
-    status.innerHTML = `<span style="color:var(--green)">✅ Restored: <b>${data.created}</b> invoices added, <b>${data.skipped}</b> skipped (already exist).</span>`;
-    toast(`Restore complete: ${data.created} added, ${data.skipped} skipped`);
-    loadAuditLog();
-  } else {
-    status.innerHTML = `<span style="color:#DC2626">❌ ${data.error}</span>`;
-    toast(data.error||'Restore failed','error');
+  // Drag and drop
+  if(upz){
+    upz.addEventListener('dragover',function(e){e.preventDefault();this.classList.add('drag');});
+    upz.addEventListener('dragleave',function(){this.classList.remove('drag');});
+    upz.addEventListener('drop',function(e){
+      e.preventDefault(); this.classList.remove('drag');
+      var f=e.dataTransfer.files[0]; if(f) doRestore(f);
+    });
   }
-  document.getElementById('restore-file').value='';
-}
 
-function handleDrop(e) {
-  e.preventDefault();
-  document.getElementById('upload-zone').classList.remove('drag');
-  const f = e.dataTransfer.files[0];
-  if (f) restoreBackup(f);
-}
-
-// ── AUDIT LOG ─────────────────────────────────────────────────────────────────
-async function loadAuditLog() {
-  const rows = await fetch(`${API}/audit-log`).then(r=>r.json()).catch(()=>[]);
-  const aClass = {CREATE:'action-create', UPDATE:'action-update', DELETE:'action-delete', RESTORE:'action-restore'};
-  document.getElementById('audit-tbody').innerHTML = rows.length ? rows.map(r=>`<tr>
-    <td style="font-size:.78rem;color:var(--muted);white-space:nowrap">${r.ts?.replace('T',' ').substring(0,19)||''}</td>
-    <td><span class="audit-action ${aClass[r.action]||''}">${r.action}</span></td>
-    <td style="font-size:.82rem">${r.entity} #${r.entity_id}</td>
-    <td style="font-size:.82rem;color:var(--slate)">${r.detail||''}</td>
-  </tr>`).join('') :
-  '<tr><td colspan="4" class="li-hint">No activity logged yet</td></tr>';
-}
-
-// ── INIT ──────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('f-date').value = today();
+  // Init
+  qi('f-date').value=today();
   loadDashboard();
 });
+
+// ══ AUDIT LOG ═══════════════════════════════════════════════════════
+function loadAudit() {
+  fetch(API+'/audit-log').then(function(r){return r.json();}).then(function(rows){
+    var cls={CREATE:'a-c',UPDATE:'a-u',DELETE:'a-d',RESTORE:'a-r'};
+    qi('audit-tbody').innerHTML=rows.length?rows.map(function(r){
+      return '<tr><td style="font-size:.75rem;color:var(--muted);white-space:nowrap">'+(r.ts||'').replace('T',' ').substring(0,19)+'</td>'+
+        '<td><span class="aa '+(cls[r.action]||'')+'">'+esc(r.action)+'</span></td>'+
+        '<td style="font-size:.8rem">'+esc(r.entity)+' #'+r.entity_id+'</td>'+
+        '<td style="font-size:.8rem;color:var(--slate)">'+esc(r.detail||'')+'</td></tr>';
+    }).join(''):'<tr><td colspan="4" class="li-hint">No activity yet</td></tr>';
+  }).catch(function(){});
+}
 </script>
 </body>
 </html>

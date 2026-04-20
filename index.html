@@ -354,7 +354,7 @@ async function turso(stmts) {
   });
   requests.push({ type: 'close' });
 
-  var res = await fetch(cfg.url.replace(/\/$/, '') + '/v2/pipeline', {
+  var res = await fetch('/api-db/v2/pipeline', {
     method:  'POST',
     headers: { 'Authorization': 'Bearer ' + cfg.token, 'Content-Type': 'application/json' },
     body:    JSON.stringify({ requests: requests })

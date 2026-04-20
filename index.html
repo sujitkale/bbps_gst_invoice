@@ -4,259 +4,128 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>GST Invoice Manager</title>
+
+<!-- ═══ TURSO CONFIG — set your credentials here ═══════════════════════
+  Get these from: turso.tech → your database → Generate Token
+  TURSO_URL  : your database HTTP URL  (https://dbname-org.turso.io)
+  TURSO_TOKEN: your database auth token
+  ════════════════════════════════════════════════════════════════════ -->
+<script>
+  window.TURSO_URL   = '__TURSO_URL__';    // e.g. https://gst-inv-myorg.turso.io
+  window.TURSO_TOKEN = '__TURSO_TOKEN__';  // your auth token
+</script>
+
+<!-- jsPDF for PDF generation in browser -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- jspdf-autotable for table layout in PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<!-- SheetJS for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root {
-  --saffron:#FF6B00; --saffron-l:#FF8C3A; --saffron-pale:#FFF3E8;
-  --green:#0A8A4A;   --green-l:#E8F7EF;
-  --navy:#0F172A;    --slate:#334155;     --muted:#64748B;
-  --border:#E2E8F0;  --surface:#F8FAFC;  --white:#FFFFFF;
-  --r:12px;
-  --font:'Plus Jakarta Sans',sans-serif;
-  --mono:'JetBrains Mono',monospace;
-  --nav-h:56px;
-  --bot-h:60px; /* bottom nav height on mobile */
-}
+:root{--saffron:#FF6B00;--saffron-l:#FF8C3A;--saffron-pale:#FFF3E8;--green:#0A8A4A;--green-l:#E8F7EF;--navy:#0F172A;--slate:#334155;--muted:#64748B;--border:#E2E8F0;--surface:#F8FAFC;--r:12px;--font:'Plus Jakarta Sans',sans-serif;--mono:'JetBrains Mono',monospace;--bot-h:60px}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;font-family:var(--font);background:var(--surface);color:var(--navy)}
-
-/* ── TOP NAV (desktop) ─────────────────────────────────────── */
-.top-nav{
-  background:var(--navy);height:var(--nav-h);
-  display:flex;align-items:center;padding:0 16px;
-  position:sticky;top:0;z-index:200;
-  box-shadow:0 2px 12px rgba(0,0,0,.3);
-}
+html,body{font-family:var(--font);background:var(--surface);color:var(--navy)}
+.top-nav{background:var(--navy);height:56px;display:flex;align-items:center;padding:0 16px;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.3)}
 .brand{display:flex;align-items:center;gap:8px;color:#fff;font-weight:800;font-size:.95rem;margin-right:20px;white-space:nowrap}
 .brand-flag{font-size:1.25rem}
 .brand-chip{background:linear-gradient(135deg,var(--saffron),var(--saffron-l));color:#fff;font-size:.55rem;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:1px}
 .top-tabs{display:flex;gap:2px;flex:1;overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none}
 .top-tabs::-webkit-scrollbar{display:none}
-.ttab{color:#94A3B8;background:none;border:none;cursor:pointer;padding:7px 12px;border-radius:7px;
-  font-family:var(--font);font-size:.78rem;font-weight:600;white-space:nowrap;
-  transition:all .15s;display:flex;align-items:center;gap:5px}
+.ttab{color:#94A3B8;background:none;border:none;cursor:pointer;padding:7px 12px;border-radius:7px;font-family:var(--font);font-size:.78rem;font-weight:600;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px}
 .ttab:hover{color:#fff;background:rgba(255,255,255,.09)}
 .ttab.active{color:#fff;background:rgba(255,107,0,.22)}
 .ttab.active .ti{color:var(--saffron)}
-
-/* ── BOTTOM NAV (mobile only) ──────────────────────────────── */
-.bot-nav{
-  display:none;
-  position:fixed;bottom:0;left:0;right:0;
-  height:var(--bot-h);background:var(--navy);
-  z-index:200;border-top:1px solid rgba(255,255,255,.1);
-  padding-bottom:env(safe-area-inset-bottom);
-}
+.bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:var(--bot-h);background:var(--navy);z-index:200;border-top:1px solid rgba(255,255,255,.1);padding-bottom:env(safe-area-inset-bottom)}
 .bot-tabs{display:flex;height:100%}
-.btab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:3px;background:none;border:none;cursor:pointer;color:#64748B;
-  font-family:var(--font);font-size:.6rem;font-weight:700;transition:color .15s;
-  -webkit-tap-highlight-color:transparent}
+.btab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;cursor:pointer;color:#64748B;font-family:var(--font);font-size:.6rem;font-weight:700;transition:color .15s;-webkit-tap-highlight-color:transparent}
 .btab .bi{font-size:1.25rem;line-height:1}
 .btab.active{color:var(--saffron)}
-.btab span{letter-spacing:.3px}
-
-/* ── PAGE CONTENT ───────────────────────────────────────────── */
-.page{display:none;padding:20px 16px;max-width:1200px;margin:0 auto;padding-bottom:calc(var(--bot-h) + 16px)}
+.page{display:none;padding:20px 16px;max-width:1200px;margin:0 auto;padding-bottom:calc(var(--bot-h)+16px)}
 .page.active{display:block}
-
-/* ── CARDS ─────────────────────────────────────────────────── */
 .card{background:#fff;border-radius:var(--r);border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden}
 .ch{padding:16px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .ct{font-size:.9rem;font-weight:700;display:flex;align-items:center;gap:6px}
 .cb{padding:18px}
-
-/* ── SECTION LABEL ─────────────────────────────────────────── */
-.sl{font-size:.67rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;
-  color:var(--muted);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--border)}
-
-/* ── FORM ───────────────────────────────────────────────────── */
-.fg{display:grid;gap:12px}
-.fg2{grid-template-columns:1fr 1fr}
-.fg3{grid-template-columns:1fr 1fr 1fr}
-.fg{display:flex;flex-direction:column;gap:4px}
-label{font-size:.74rem;font-weight:600;color:var(--slate)}
+.sl{font-size:.67rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--border)}
+label{font-size:.74rem;font-weight:600;color:var(--slate);display:block;margin-bottom:4px}
 .req{color:var(--saffron)}
-input,textarea,select{
-  border:1.5px solid var(--border);border-radius:8px;padding:9px 11px;
-  font-family:var(--font);font-size:.84rem;color:var(--navy);background:#fff;
-  width:100%;transition:border-color .15s,box-shadow .15s;
-  -webkit-appearance:none;appearance:none}
+input,textarea,select{border:1.5px solid var(--border);border-radius:8px;padding:9px 11px;font-family:var(--font);font-size:.84rem;color:var(--navy);background:#fff;width:100%;transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none}
 input:focus,textarea:focus,select:focus{outline:none;border-color:var(--saffron);box-shadow:0 0 0 3px rgba(255,107,0,.1)}
 textarea{resize:vertical;min-height:64px}
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748B' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
-
-/* ── BUTTONS ─────────────────────────────────────────────────── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;border:none;
-  font-family:var(--font);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;
-  -webkit-tap-highlight-color:transparent;touch-action:manipulation}
-.btn-primary{background:var(--saffron);color:#fff}
-.btn-primary:active{background:var(--saffron-l)}
-.btn-success{background:var(--green);color:#fff}
-.btn-success:active{background:#0A7A42}
-.btn-outline{background:#fff;color:var(--slate);border:1.5px solid var(--border)}
-.btn-outline:active{border-color:var(--saffron);color:var(--saffron)}
-.btn-danger{background:#FEF2F2;color:#DC2626;border:1.5px solid #FECACA}
-.btn-danger:active{background:#DC2626;color:#fff}
+.fgf{margin-bottom:0}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;border:none;font-family:var(--font);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn-primary{background:var(--saffron);color:#fff}.btn-primary:active{background:var(--saffron-l)}
+.btn-success{background:var(--green);color:#fff}.btn-success:active{background:#0A7A42}
+.btn-outline{background:#fff;color:var(--slate);border:1.5px solid var(--border)}.btn-outline:active{border-color:var(--saffron);color:var(--saffron)}
+.btn-danger{background:#FEF2F2;color:#DC2626;border:1.5px solid #FECACA}.btn-danger:active{background:#DC2626;color:#fff}
 .btn-blue{background:#EFF6FF;color:#2563EB;border:1.5px solid #BFDBFE}
-.btn-sm{padding:6px 12px;font-size:.76rem}
-.btn-icon{padding:7px;border-radius:7px}
+.btn-sm{padding:6px 12px;font-size:.76rem}.btn-icon{padding:7px;border-radius:7px}
 .btn-ghost{background:none;border:none;color:var(--muted);padding:5px 7px;border-radius:6px}
-.btn-ghost:active{color:var(--saffron);background:var(--saffron-pale)}
-@media(hover:hover){
-  .btn-primary:hover{background:var(--saffron-l);transform:translateY(-1px);box-shadow:0 4px 12px rgba(255,107,0,.3)}
-  .btn-success:hover{background:#0A7A42}
-  .btn-outline:hover{border-color:var(--saffron);color:var(--saffron);background:var(--saffron-pale)}
-  .btn-danger:hover{background:#DC2626;color:#fff}
-  .btn-blue:hover{background:#2563EB;color:#fff}
-  .btn-ghost:hover{color:var(--saffron);background:var(--saffron-pale)}
-}
-
-/* ── BADGE ───────────────────────────────────────────────────── */
+@media(hover:hover){.btn-primary:hover{background:var(--saffron-l);transform:translateY(-1px);box-shadow:0 4px 12px rgba(255,107,0,.3)}.btn-success:hover{background:#0A7A42}.btn-outline:hover{border-color:var(--saffron);color:var(--saffron);background:var(--saffron-pale)}.btn-danger:hover{background:#DC2626;color:#fff}.btn-blue:hover{background:#2563EB;color:#fff}.btn-ghost:hover{color:var(--saffron);background:var(--saffron-pale)}}
 .badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:700}
-.badge-draft{background:#F1F5F9;color:#64748B}
-.badge-final{background:var(--green-l);color:var(--green)}
-.badge-paid{background:#EFF6FF;color:#2563EB}
-
-/* ── TABLE ───────────────────────────────────────────────────── */
+.badge-draft{background:#F1F5F9;color:#64748B}.badge-final{background:var(--green-l);color:var(--green)}.badge-paid{background:#EFF6FF;color:#2563EB}
 .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;font-size:.82rem}
-th{background:var(--surface);color:var(--muted);font-weight:700;font-size:.67rem;
-  letter-spacing:.5px;text-transform:uppercase;padding:9px 12px;text-align:left;
-  border-bottom:1px solid var(--border);white-space:nowrap}
+th{background:var(--surface);color:var(--muted);font-weight:700;font-size:.67rem;letter-spacing:.5px;text-transform:uppercase;padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
 td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 @media(hover:hover){tr:hover td{background:var(--surface)}}
 .mono{font-family:var(--mono);font-size:.78rem}
-
-/* ── LINE ITEM TABLE ─────────────────────────────────────────── */
 .lit{width:100%;border-collapse:collapse;font-size:.79rem}
-.lit th{background:var(--navy);color:#94A3B8;font-size:.65rem;letter-spacing:.4px;
-  text-transform:uppercase;padding:8px 7px;text-align:center;white-space:nowrap}
+.lit th{background:var(--navy);color:#94A3B8;font-size:.65rem;letter-spacing:.4px;text-transform:uppercase;padding:8px 7px;text-align:center;white-space:nowrap}
 .lit td{padding:4px 4px;border-bottom:1px solid var(--border);vertical-align:middle}
-.lit input,.lit select{border:1.5px solid var(--border);border-radius:6px;padding:6px 7px;
-  font-family:var(--font);font-size:.79rem;width:100%;min-width:50px;
-  color:var(--navy);background:#fff;-webkit-appearance:none;appearance:none}
+.lit input,.lit select{border:1.5px solid var(--border);border-radius:6px;padding:6px 7px;font-family:var(--font);font-size:.79rem;width:100%;min-width:50px;color:var(--navy);background:#fff}
 .lit input:focus{outline:none;border-color:var(--saffron)}
-.calc{background:#E8F7EF!important;color:var(--green)!important;font-weight:700;
-  text-align:right;font-family:var(--mono);border-color:#BBF7D0!important;font-size:.76rem!important}
+.calc{background:#E8F7EF!important;color:var(--green)!important;font-weight:700;text-align:right;font-family:var(--mono);border-color:#BBF7D0!important;font-size:.76rem!important}
 .li-hint{text-align:center;color:var(--muted);font-size:.8rem;padding:18px;font-style:italic}
-
-/* ── SUMMARY BOX ─────────────────────────────────────────────── */
 .sbox{background:linear-gradient(135deg,#F8FAFC,#F0FDF4);border:1.5px solid var(--border);border-radius:var(--r);padding:16px 20px}
 .srow{display:flex;justify-content:space-between;align-items:center;padding:5px 0}
 .srow.tot{border-top:2px solid var(--border);margin-top:6px;padding-top:10px;font-size:1rem;font-weight:800}
-.slbl{color:var(--slate);font-size:.83rem}
-.sval{font-family:var(--mono);font-weight:600}
+.slbl{color:var(--slate);font-size:.83rem}.sval{font-family:var(--mono);font-weight:600}
 .tot .sval{color:var(--saffron);font-size:1.05rem}
-.words{background:var(--saffron-pale);border:1px solid rgba(255,107,0,.2);border-radius:7px;
-  padding:8px 12px;font-size:.79rem;color:var(--saffron);font-weight:600;font-style:italic;margin-top:7px}
-
-/* ── STATS ───────────────────────────────────────────────────── */
+.words{background:var(--saffron-pale);border:1px solid rgba(255,107,0,.2);border-radius:7px;padding:8px 12px;font-size:.79rem;color:var(--saffron);font-weight:600;font-style:italic;margin-top:7px}
 .sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-.sc{background:#fff;border-radius:var(--r);padding:16px;border:1px solid var(--border)}
-.sc.ac{border-left:4px solid var(--saffron)}
-.sc.gc{border-left:4px solid var(--green)}
+.sc{background:#fff;border-radius:var(--r);padding:16px;border:1px solid var(--border)}.sc.ac{border-left:4px solid var(--saffron)}.sc.gc{border-left:4px solid var(--green)}
 .sc-lbl{font-size:.7rem;font-weight:700;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}
 .sc-val{font-size:1.4rem;font-weight:800;color:var(--navy);margin-top:3px;line-height:1}
 .sc-sub{font-size:.72rem;color:var(--muted);margin-top:3px}
-
-/* ── CHART ───────────────────────────────────────────────────── */
 .bars{display:flex;align-items:flex-end;gap:6px;height:100px;padding:0 4px}
 .bg{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
 .bar{width:100%;background:linear-gradient(180deg,var(--saffron),var(--saffron-l));border-radius:3px 3px 0 0;min-height:3px}
-.bl{font-size:.58rem;color:var(--muted);font-weight:600;white-space:nowrap}
-.bv{font-size:.58rem;color:var(--navy);font-weight:700}
-
-/* ── INLINE DELETE CONFIRM ───────────────────────────────────── */
-.del-confirm{display:none;background:#FEF2F2;border:1.5px solid #FECACA;
-  border-radius:10px;padding:14px 16px;margin:0 16px 16px}
-.del-confirm.open{display:block}
-.del-confirm p{font-size:.83rem;color:#7F1D1D;margin-bottom:10px}
+.bl{font-size:.58rem;color:var(--muted);font-weight:600;white-space:nowrap}.bv{font-size:.58rem;color:var(--navy);font-weight:700}
+.del-confirm{display:none;background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:14px 16px;margin:0 16px 16px}
+.del-confirm.open{display:block}.del-confirm p{font-size:.83rem;color:#7F1D1D;margin-bottom:10px}
 .del-confirm .da{display:flex;gap:8px}
-
-/* ── TOAST ───────────────────────────────────────────────────── */
-.toast{position:fixed;bottom:calc(var(--bot-h) + 12px);right:16px;z-index:9999;
-  background:var(--navy);color:#fff;padding:11px 16px;border-radius:10px;
-  font-size:.83rem;font-weight:500;display:flex;align-items:center;gap:8px;
-  box-shadow:0 4px 20px rgba(0,0,0,.25);transform:translateY(100px);
-  transition:transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;max-width:320px}
-.toast.show{transform:translateY(0)}
-.toast.success{border-left:4px solid var(--green)}
-.toast.error{border-left:4px solid #DC2626}
-.toast.info{border-left:4px solid #2563EB}
-
-/* ── SUPPLY TOGGLE ───────────────────────────────────────────── */
+.toast{position:fixed;bottom:calc(var(--bot-h)+12px);right:16px;z-index:9999;background:var(--navy);color:#fff;padding:11px 16px;border-radius:10px;font-size:.83rem;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.25);transform:translateY(100px);transition:transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;max-width:320px}
+.toast.show{transform:translateY(0)}.toast.success{border-left:4px solid var(--green)}.toast.error{border-left:4px solid #DC2626}.toast.info{border-left:4px solid #2563EB}
 .stog{display:flex;background:var(--surface);border-radius:8px;padding:3px;border:1px solid var(--border);width:fit-content}
-.sopt{padding:7px 14px;border-radius:6px;border:none;cursor:pointer;font-family:var(--font);
-  font-size:.79rem;font-weight:600;color:var(--muted);background:none;transition:all .15s;white-space:nowrap;
-  -webkit-tap-highlight-color:transparent}
+.sopt{padding:7px 14px;border-radius:6px;border:none;cursor:pointer;font-family:var(--font);font-size:.79rem;font-weight:600;color:var(--muted);background:none;transition:all .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .sopt.active{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(0,0,0,.1)}
-
-/* ── SEARCH ──────────────────────────────────────────────────── */
-.sbar{display:flex;align-items:center;gap:7px;background:var(--surface);
-  border:1.5px solid var(--border);border-radius:8px;padding:7px 11px}
+.sbar{display:flex;align-items:center;gap:7px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:7px 11px}
 .sbar input{border:none;background:none;outline:none;font-family:var(--font);font-size:.82rem;color:var(--navy);width:100%;min-width:0}
-
-/* ── UPLOAD ZONE ─────────────────────────────────────────────── */
 .upz{border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:all .2s}
 .upz:hover,.upz.drag{border-color:var(--saffron);background:var(--saffron-pale)}
-
-/* ── AUDIT ───────────────────────────────────────────────────── */
 .aa{display:inline-flex;padding:2px 7px;border-radius:4px;font-size:.66rem;font-weight:700}
-.a-c{background:#D1FAE5;color:#065F46}
-.a-u{background:#DBEAFE;color:#1E3A8A}
-.a-d{background:#FEE2E2;color:#7F1D1D}
-.a-r{background:#FEF3C7;color:#78350F}
-
-/* ── EMPTY ───────────────────────────────────────────────────── */
-.empty{text-align:center;padding:48px 24px;color:var(--muted)}
-.em{font-size:2.2rem;margin-bottom:8px}
-
-/* ── DIVIDER ─────────────────────────────────────────────────── */
+.a-c{background:#D1FAE5;color:#065F46}.a-u{background:#DBEAFE;color:#1E3A8A}.a-d{background:#FEE2E2;color:#7F1D1D}.a-r{background:#FEF3C7;color:#78350F}
+.empty{text-align:center;padding:48px 24px;color:var(--muted)}.em{font-size:2.2rem;margin-bottom:8px}
 .divider{height:1px;background:var(--border);margin:16px 0}
-
-/* ══ RESPONSIVE ══════════════════════════════════════════════════ */
-@media(max-width:768px){
-  /* Show bottom nav, hide top tabs */
-  .top-tabs{display:none}
-  .bot-nav{display:block}
-  /* Adjust page bottom padding for bottom nav */
-  .page{padding-bottom:calc(var(--bot-h) + 20px)}
-  /* Toast above bottom nav */
-  .toast{bottom:calc(var(--bot-h) + 10px);left:16px;right:16px;max-width:none}
-  /* Grids collapse */
-  .fg2,.fg3{grid-template-columns:1fr}
-  .sgrid{grid-template-columns:1fr 1fr}
-  /* Dashboard 2-col layout collapses */
-  .dash-grid{grid-template-columns:1fr!important}
-  /* Summary below line items full width */
-  .inv-bottom{grid-template-columns:1fr!important}
-  /* data page */
-  .data-grid{grid-template-columns:1fr!important}
-  /* smaller card padding */
-  .cb{padding:14px}
-  .ch{padding:14px 14px 10px}
-}
-@media(max-width:480px){
-  .sgrid{grid-template-columns:1fr}
-  .brand-chip{display:none}
-}
-/* scrollbar */
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}
+/* config error banner */
+.cfg-error{background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:16px;margin-bottom:16px;font-size:.85rem;color:#7F1D1D;display:none}
+.cfg-error.show{display:block}
+@media(max-width:768px){.top-tabs{display:none}.bot-nav{display:block}.toast{bottom:calc(var(--bot-h)+10px);left:16px;right:16px;max-width:none}.dash-grid{grid-template-columns:1fr!important}.inv-bottom{grid-template-columns:1fr!important}.data-grid{grid-template-columns:1fr!important}.sgrid{grid-template-columns:1fr 1fr}.cb{padding:14px}.ch{padding:14px 14px 10px}}
+@media(max-width:480px){.sgrid{grid-template-columns:1fr}.brand-chip{display:none}}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 </style>
 </head>
 <body>
 
-<!-- ═══ TOP NAV ═══ -->
+<!-- TOP NAV -->
 <nav class="top-nav">
-  <div class="brand">
-    <span class="brand-flag">🇮🇳</span>
-    <span>GST Invoice</span>
-    <span class="brand-chip">PRO</span>
-  </div>
+  <div class="brand"><span class="brand-flag">🇮🇳</span><span>GST Invoice</span><span class="brand-chip">PRO</span></div>
   <div class="top-tabs" id="top-tabs">
     <button class="ttab active" data-page="dashboard"><span class="ti">📊</span><span>Dashboard</span></button>
     <button class="ttab" data-page="invoices"><span class="ti">🧾</span><span>Invoices</span></button>
@@ -266,7 +135,7 @@ tr:last-child td{border-bottom:none}
   </div>
 </nav>
 
-<!-- ═══ BOTTOM NAV (mobile) ═══ -->
+<!-- BOTTOM NAV (mobile) -->
 <nav class="bot-nav">
   <div class="bot-tabs" id="bot-tabs">
     <button class="btab active" data-page="dashboard"><span class="bi">📊</span><span>Home</span></button>
@@ -277,66 +146,45 @@ tr:last-child td{border-bottom:none}
   </div>
 </nav>
 
-<!-- ═══ TOAST ═══ -->
 <div class="toast" id="toast"></div>
 
-<!-- ══════════════════ DASHBOARD ══════════════════ -->
+<!-- ══ DASHBOARD ══ -->
 <div class="page active" id="page-dashboard">
+  <div id="cfg-error" class="cfg-error">
+    ⚠️ <strong>Turso not configured.</strong> Go to Settings → enter your Turso URL and Token → Save. Or open <code>index.html</code> and set <code>TURSO_URL</code> and <code>TURSO_TOKEN</code> at the top.
+  </div>
   <div class="sgrid" id="sgrid">
-    <div class="sc" style="animation:shimmer 1.5s infinite;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;height:80px"></div>
-    <div class="sc" style="animation:shimmer 1.5s infinite;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;height:80px"></div>
-    <div class="sc" style="animation:shimmer 1.5s infinite;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;height:80px"></div>
-    <div class="sc" style="animation:shimmer 1.5s infinite;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;height:80px"></div>
+    <div class="sc" style="height:80px;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite"></div>
+    <div class="sc" style="height:80px;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite"></div>
+    <div class="sc" style="height:80px;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite"></div>
+    <div class="sc" style="height:80px;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite"></div>
   </div>
   <div class="dash-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:14px">
-    <div class="card">
-      <div class="ch"><div class="ct">📈 Monthly Revenue</div></div>
-      <div class="cb"><div class="bars" id="chart-bars"></div></div>
-    </div>
-    <div class="card">
-      <div class="ch"><div class="ct">🏆 Top Clients</div></div>
-      <div class="cb" id="top-clients"></div>
-    </div>
+    <div class="card"><div class="ch"><div class="ct">📈 Monthly Revenue</div></div><div class="cb"><div class="bars" id="chart-bars"></div></div></div>
+    <div class="card"><div class="ch"><div class="ct">🏆 Top Clients</div></div><div class="cb" id="top-clients"></div></div>
   </div>
   <div style="margin-top:14px" class="card">
-    <div class="ch">
-      <div class="ct">🧾 Recent Invoices</div>
-      <button class="btn btn-outline btn-sm" onclick="go('invoices')">View All →</button>
-    </div>
+    <div class="ch"><div class="ct">🧾 Recent Invoices</div><button class="btn btn-outline btn-sm" onclick="go('invoices')">View All →</button></div>
     <div class="tw" id="recent-table"></div>
   </div>
 </div>
 
-<!-- ══════════════════ INVOICES ══════════════════ -->
+<!-- ══ INVOICES ══ -->
 <div class="page" id="page-invoices">
   <div class="card">
     <div class="ch">
       <div class="ct">🧾 All Invoices</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%">
-        <div class="sbar" style="flex:1;min-width:160px">
-          <span>🔍</span>
-          <input type="text" id="search-input" placeholder="Search…" oninput="filterInvoices()">
-        </div>
+        <div class="sbar" style="flex:1;min-width:160px"><span>🔍</span><input type="text" id="search-input" placeholder="Search…" oninput="filterInvoices()"></div>
         <button class="btn btn-primary btn-sm" onclick="go('new-invoice')">+ New</button>
       </div>
     </div>
-    <div class="tw">
-      <table>
-        <thead><tr><th>Invoice No</th><th>Date</th><th>Client</th><th>Taxable</th><th>GST</th><th>Total</th><th>Status</th><th></th></tr></thead>
-        <tbody id="inv-tbody"></tbody>
-      </table>
-    </div>
-    <div id="del-box" class="del-confirm">
-      <p>⚠️ Delete invoice <strong id="del-label"></strong>? This cannot be undone.</p>
-      <div class="da">
-        <button class="btn btn-outline btn-sm" onclick="cancelDel()">Cancel</button>
-        <button class="btn btn-danger btn-sm" id="del-confirm-btn">Yes, Delete</button>
-      </div>
-    </div>
+    <div class="tw"><table><thead><tr><th>Invoice No</th><th>Date</th><th>Client</th><th>Taxable</th><th>GST</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody id="inv-tbody"></tbody></table></div>
+    <div id="del-box" class="del-confirm"><p>⚠️ Delete invoice <strong id="del-label"></strong>? Cannot be undone.</p><div class="da"><button class="btn btn-outline btn-sm" onclick="cancelDel()">Cancel</button><button class="btn btn-danger btn-sm" id="del-confirm-btn">Yes, Delete</button></div></div>
   </div>
 </div>
 
-<!-- ══════════════════ NEW / EDIT INVOICE ══════════════════ -->
+<!-- ══ NEW/EDIT INVOICE ══ -->
 <div class="page" id="page-new-invoice">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
     <h2 style="font-size:1.2rem;font-weight:800" id="inv-title">New Invoice</h2>
@@ -347,71 +195,41 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
   <input type="hidden" id="edit-id">
-
-  <div class="card" style="margin-bottom:12px">
-    <div class="cb">
-      <div class="sl">Invoice Details</div>
-      <div class="fg fg3" style="display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr">
-        <div class="fgf"><label>Invoice No <span class="req">*</span></label><input type="text" id="f-no" placeholder="BBPS/37/25-26"></div>
-        <div class="fgf"><label>Date <span class="req">*</span></label><input type="date" id="f-date"></div>
-        <div class="fgf"><label>PO No</label><input type="text" id="f-po"></div>
-      </div>
+  <div class="card" style="margin-bottom:12px"><div class="cb">
+    <div class="sl">Invoice Details</div>
+    <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr">
+      <div><label>Invoice No <span class="req">*</span></label><input type="text" id="f-no" placeholder="BBPS/37/25-26"></div>
+      <div><label>Date <span class="req">*</span></label><input type="date" id="f-date"></div>
+      <div><label>PO No</label><input type="text" id="f-po"></div>
     </div>
-  </div>
-
-  <div class="card" style="margin-bottom:12px">
-    <div class="cb">
-      <div class="sl">Client Details</div>
-      <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr">
-        <div class="fgf"><label>Client Name <span class="req">*</span></label><input type="text" id="f-client"></div>
-        <div class="fgf"><label>Client GSTIN</label><input type="text" id="f-cgstin" style="text-transform:uppercase" placeholder="27AAATB2599R1ZZ"></div>
-        <div class="fgf" style="grid-column:1/-1"><label>Client Address</label><textarea id="f-caddr" placeholder="Full billing address…"></textarea></div>
-      </div>
-      <div class="divider"></div>
-      <div class="sl">Supply Type</div>
-      <div class="stog">
-        <button class="sopt active" id="sopt-intra" onclick="setSupply('intra')">Intra-State (CGST+SGST)</button>
-        <button class="sopt" id="sopt-inter" onclick="setSupply('inter')">Inter-State (IGST)</button>
-      </div>
-      <input type="hidden" id="f-supply" value="intra">
+  </div></div>
+  <div class="card" style="margin-bottom:12px"><div class="cb">
+    <div class="sl">Client Details</div>
+    <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr">
+      <div><label>Client Name <span class="req">*</span></label><input type="text" id="f-client"></div>
+      <div><label>Client GSTIN</label><input type="text" id="f-cgstin" style="text-transform:uppercase"></div>
+      <div style="grid-column:1/-1"><label>Client Address</label><textarea id="f-caddr"></textarea></div>
     </div>
-  </div>
-
+    <div class="divider"></div>
+    <div class="sl">Supply Type</div>
+    <div class="stog"><button class="sopt active" id="sopt-intra" onclick="setSupply('intra')">Intra-State (CGST+SGST)</button><button class="sopt" id="sopt-inter" onclick="setSupply('inter')">Inter-State (IGST)</button></div>
+    <input type="hidden" id="f-supply" value="intra">
+  </div></div>
   <div class="card" style="margin-bottom:12px">
-    <div class="ch">
-      <div class="ct">📋 Line Items</div>
-      <button class="btn btn-outline btn-sm" onclick="addLI()">+ Add Item</button>
-    </div>
+    <div class="ch"><div class="ct">📋 Line Items</div><button class="btn btn-outline btn-sm" onclick="addLI()">+ Add Item</button></div>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <table class="lit" id="lit">
-        <thead>
-          <tr>
-            <th style="width:30px">#</th>
-            <th style="min-width:160px">Description</th>
-            <th style="min-width:80px">HSN/SAC</th>
-            <th style="min-width:72px">Qty</th>
-            <th style="min-width:62px">Unit</th>
-            <th style="min-width:82px">Rate (₹)</th>
-            <th style="min-width:100px;background:#1A4731">Taxable Val</th>
-            <th style="min-width:52px" id="th1">CGST%</th>
-            <th style="min-width:90px;background:#1A4731" id="th2">CGST Amt</th>
-            <th style="min-width:52px" id="th3">SGST%</th>
-            <th style="min-width:90px;background:#1A4731" id="th4">SGST Amt</th>
-            <th style="min-width:36px"></th>
-          </tr>
-        </thead>
-        <tbody id="li-body"><tr><td colspan="12" class="li-hint">Tap "+ Add Item" to start</td></tr></tbody>
-      </table>
+      <table class="lit"><thead><tr>
+        <th style="width:30px">#</th><th style="min-width:160px">Description</th><th style="min-width:80px">HSN/SAC</th>
+        <th style="min-width:72px">Qty</th><th style="min-width:62px">Unit</th><th style="min-width:82px">Rate (₹)</th>
+        <th style="min-width:100px;background:#1A4731">Taxable Val</th>
+        <th style="min-width:52px" id="th1">CGST%</th><th style="min-width:90px;background:#1A4731" id="th2">CGST Amt</th>
+        <th style="min-width:52px" id="th3">SGST%</th><th style="min-width:90px;background:#1A4731" id="th4">SGST Amt</th>
+        <th style="min-width:36px"></th>
+      </tr></thead><tbody id="li-body"><tr><td colspan="12" class="li-hint">Tap "+ Add Item" to start</td></tr></tbody></table>
     </div>
   </div>
-
   <div class="inv-bottom" style="display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:start">
-    <div class="card">
-      <div class="cb">
-        <div class="sl">Notes</div>
-        <textarea id="f-notes" placeholder="Payment terms, notes…" style="width:100%;min-height:76px;border:1.5px solid var(--border);border-radius:8px;padding:9px;font-family:var(--font);font-size:.83rem"></textarea>
-      </div>
-    </div>
+    <div class="card"><div class="cb"><div class="sl">Notes</div><textarea id="f-notes" style="width:100%;min-height:76px;border:1.5px solid var(--border);border-radius:8px;padding:9px;font-family:var(--font);font-size:.83rem"></textarea></div></div>
     <div class="sbox">
       <div class="sl">Summary</div>
       <div class="srow"><span class="slbl">Taxable Value</span><span class="sval" id="s-tv">₹0.00</span></div>
@@ -425,383 +243,416 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- ══════════════════ DATA ══════════════════ -->
+<!-- ══ DATA ══ -->
 <div class="page" id="page-data">
   <div class="data-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-    <div class="card">
-      <div class="ch"><div class="ct">📤 Export Backup</div></div>
-      <div class="cb">
-        <p style="font-size:.83rem;color:var(--muted);margin-bottom:14px">Download all invoices + settings as a JSON file. Use to migrate or as a safety copy.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-success btn-sm" onclick="dlBackup()">⬇️ JSON Backup</button>
-          <button class="btn btn-blue btn-sm" onclick="dlCSV()">📊 CSV for Tally</button>
-        </div>
+    <div class="card"><div class="ch"><div class="ct">📤 Export Backup</div></div><div class="cb">
+      <p style="font-size:.83rem;color:var(--muted);margin-bottom:14px">Download all invoices as JSON (for restore) or CSV (for Tally / Excel).</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-success btn-sm" onclick="dlBackup()">⬇️ JSON Backup</button>
+        <button class="btn btn-blue btn-sm" onclick="dlCSV()">📊 CSV for Tally</button>
       </div>
-    </div>
-    <div class="card">
-      <div class="ch"><div class="ct">📥 Restore from Backup</div></div>
-      <div class="cb">
-        <p style="font-size:.83rem;color:var(--muted);margin-bottom:12px">Upload a JSON backup. Existing invoices (by invoice number) are skipped — no duplicates.</p>
-        <div class="upz" id="upz">
-          <div style="font-size:1.8rem;margin-bottom:6px">📁</div>
-          <div style="font-size:.83rem;font-weight:600;color:var(--slate)">Tap to select backup file</div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:3px">.json files only</div>
-        </div>
-        <!-- Hidden real file input - triggered by button to avoid browser security issues -->
-        <button class="btn btn-outline btn-sm" id="pick-file-btn" style="margin-top:10px;width:100%">📂 Choose File</button>
-        <input type="file" id="restore-input" accept=".json,application/json" style="display:none">
-        <div id="restore-status" style="margin-top:10px;font-size:.81rem"></div>
-      </div>
-    </div>
+    </div></div>
+    <div class="card"><div class="ch"><div class="ct">📥 Restore from Backup</div></div><div class="cb">
+      <p style="font-size:.83rem;color:var(--muted);margin-bottom:12px">Upload a JSON backup. Existing invoices (by invoice number) are skipped.</p>
+      <div class="upz" id="upz"><div style="font-size:1.8rem;margin-bottom:6px">📁</div><div style="font-size:.83rem;font-weight:600;color:var(--slate)">Tap to select</div><div style="font-size:.72rem;color:var(--muted);margin-top:3px">.json only</div></div>
+      <button class="btn btn-outline btn-sm" id="pick-file-btn" style="margin-top:10px;width:100%">📂 Choose File</button>
+      <input type="file" id="restore-input" accept=".json,application/json" style="display:none">
+      <div id="restore-status" style="margin-top:10px;font-size:.81rem"></div>
+    </div></div>
   </div>
-  <div class="card">
-    <div class="ch">
-      <div class="ct">📋 Audit Log</div>
-      <button class="btn btn-outline btn-sm" onclick="loadAudit()">🔄 Refresh</button>
-    </div>
-    <div class="tw">
-      <table>
-        <thead><tr><th>Time</th><th>Action</th><th>Entity</th><th>Detail</th></tr></thead>
-        <tbody id="audit-tbody"></tbody>
-      </table>
-    </div>
+  <div class="card"><div class="ch"><div class="ct">📋 Audit Log</div><button class="btn btn-outline btn-sm" onclick="loadAudit()">🔄 Refresh</button></div>
+    <div class="tw"><table><thead><tr><th>Time</th><th>Action</th><th>Entity</th><th>Detail</th></tr></thead><tbody id="audit-tbody"></tbody></table></div>
   </div>
 </div>
 
-<!-- ══════════════════ SETTINGS ══════════════════ -->
+<!-- ══ SETTINGS ══ -->
 <div class="page" id="page-config">
-  <div class="card">
-    <div class="ch">
-      <div class="ct">🏢 Company Settings</div>
-      <button class="btn btn-primary btn-sm" onclick="saveConfig()">💾 Save Settings</button>
+  <div class="card" style="margin-bottom:14px;border-color:#FCA5A5;background:#FFF5F5">
+    <div class="ch" style="border-color:#FCA5A5"><div class="ct">🔑 Turso Database Connection</div></div>
+    <div class="cb">
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Get these from <strong>turso.tech</strong> → your database → <strong>Generate Token</strong>. These are saved in your browser only.</p>
+      <div style="display:grid;gap:12px">
+        <div><label>Turso Database URL <span class="req">*</span></label><input type="text" id="t-url" placeholder="https://gst-inv-myorg.turso.io"></div>
+        <div><label>Turso Auth Token <span class="req">*</span></label><input type="password" id="t-token" placeholder="your-auth-token"></div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="saveTursoConfig()">💾 Save & Test Connection</button>
+        <span id="turso-test-result" style="font-size:.82rem;align-self:center"></span>
+      </div>
     </div>
+  </div>
+  <div class="card"><div class="ch"><div class="ct">🏢 Company Settings</div><button class="btn btn-primary btn-sm" onclick="saveConfig()">💾 Save Settings</button></div>
     <div class="cb">
       <div class="sl">Business Information</div>
       <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr">
-        <div class="fgf" style="grid-column:1/-1"><label>Company / Business Name <span class="req">*</span></label><input type="text" id="c-name" placeholder="BHAKTI BIRD PROOFING SERVICES"></div>
-        <div class="fgf"><label>GSTIN <span class="req">*</span></label><input type="text" id="c-gstin" placeholder="27AXIPM7458B1ZA" style="text-transform:uppercase"></div>
-        <div class="fgf"><label>State Code</label><input type="text" id="c-state" placeholder="27" maxlength="2"></div>
-        <div class="fgf"><label>Contact Number</label><input type="tel" id="c-contact" placeholder="9876543210"></div>
-        <div class="fgf"><label>Email</label><input type="email" id="c-email" placeholder="business@example.com"></div>
-        <div class="fgf" style="grid-column:1/-1"><label>Full Business Address</label><textarea id="c-addr"></textarea></div>
+        <div style="grid-column:1/-1"><label>Company / Business Name <span class="req">*</span></label><input type="text" id="c-name" placeholder="BHAKTI BIRD PROOFING SERVICES"></div>
+        <div><label>GSTIN <span class="req">*</span></label><input type="text" id="c-gstin" placeholder="27AXIPM7458B1ZA" style="text-transform:uppercase"></div>
+        <div><label>State Code</label><input type="text" id="c-state" placeholder="27" maxlength="2"></div>
+        <div><label>Contact Number</label><input type="tel" id="c-contact"></div>
+        <div><label>Email</label><input type="email" id="c-email"></div>
+        <div style="grid-column:1/-1"><label>Full Business Address</label><textarea id="c-addr"></textarea></div>
       </div>
       <div class="divider"></div>
       <div class="sl">Bank Details</div>
       <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr">
-        <div class="fgf"><label>Beneficiary Name</label><input type="text" id="c-bname"></div>
-        <div class="fgf"><label>Account Number</label><input type="text" id="c-accno"></div>
-        <div class="fgf"><label>IFSC Code</label><input type="text" id="c-ifsc" style="text-transform:uppercase"></div>
-        <div class="fgf"><label>Bank Name</label><input type="text" id="c-bank"></div>
-        <div class="fgf"><label>Branch</label><input type="text" id="c-branch"></div>
-        <div class="fgf"><label>Account Type</label>
-          <select id="c-actype"><option>Current Account</option><option>Savings Account</option></select>
-        </div>
+        <div><label>Beneficiary Name</label><input type="text" id="c-bname"></div>
+        <div><label>Account Number</label><input type="text" id="c-accno"></div>
+        <div><label>IFSC Code</label><input type="text" id="c-ifsc" style="text-transform:uppercase"></div>
+        <div><label>Bank Name</label><input type="text" id="c-bank"></div>
+        <div><label>Branch</label><input type="text" id="c-branch"></div>
+        <div><label>Account Type</label><select id="c-actype"><option>Current Account</option><option>Savings Account</option></select></div>
       </div>
       <div class="divider"></div>
       <div class="sl">Signatory</div>
       <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr">
-        <div class="fgf"><label>Name</label><input type="text" id="c-signame"></div>
-        <div class="fgf"><label>Title</label><input type="text" id="c-sigtitle" placeholder="PROPRIETOR"></div>
+        <div><label>Name</label><input type="text" id="c-signame"></div>
+        <div><label>Title</label><input type="text" id="c-sigtitle" placeholder="PROPRIETOR"></div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════════════════
-// API BASE — auto-detects server URL; works on any device on the
-// same network, not hardcoded to localhost (fixes friend's browser)
-// ══════════════════════════════════════════════════════════════════
-const API = (function() {
-  const h = window.location.hostname;
-  const proto = window.location.protocol;
-  // If served from Flask directly (port 5000), same origin
-  if (window.location.port === '5000') return '';
-  // Otherwise assume Flask is on port 5000, same host
-  return proto + '//' + h + ':5000';
-})() + '/api';
+// ════════════════════════════════════════════════════════════════════
+//  TURSO HTTP CLIENT
+//  Talks directly to Turso's /v2/pipeline REST API from the browser.
+//  No Flask, no backend — pure static HTML on Netlify.
+// ════════════════════════════════════════════════════════════════════
 
-// ══ STATE ══════════════════════════════════════════════════════════
-let allInvoices = [], supply = 'intra', liCount = 0;
+// Load credentials: window vars (from <script> at top) OR localStorage overrides
+function getTursoConfig() {
+  return {
+    url:   localStorage.getItem('turso_url')   || window.TURSO_URL   || '',
+    token: localStorage.getItem('turso_token') || window.TURSO_TOKEN || ''
+  };
+}
 
-// ══ NAV ════════════════════════════════════════════════════════════
-function go(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  // Update both top and bottom nav tabs
-  document.querySelectorAll('.ttab, .btab').forEach(t => {
-    t.classList.toggle('active', t.dataset.page === id);
+function isConfigured() {
+  var c = getTursoConfig();
+  return c.url && c.token && c.url !== '__TURSO_URL__' && c.token !== '__TURSO_TOKEN__';
+}
+
+// Execute one or more SQL statements against Turso
+// stmts: array of {sql, args:[]} OR a single {sql, args:[]}
+// Returns array of result objects
+async function turso(stmts) {
+  if (!Array.isArray(stmts)) stmts = [stmts];
+  var cfg = getTursoConfig();
+  if (!cfg.url || !cfg.token) throw new Error('Turso not configured. Go to Settings.');
+
+  var requests = stmts.map(function(s) {
+    var stmt = { sql: s.sql };
+    if (s.args && s.args.length) {
+      stmt.args = s.args.map(function(a) {
+        if (a === null || a === undefined) return { type: 'null' };
+        if (typeof a === 'number') return { type: 'float', value: String(a) };
+        return { type: 'text', value: String(a) };
+      });
+    }
+    return { type: 'execute', stmt: stmt };
   });
+  requests.push({ type: 'close' });
+
+  var res = await fetch(cfg.url.replace(/\/$/, '') + '/v2/pipeline', {
+    method:  'POST',
+    headers: { 'Authorization': 'Bearer ' + cfg.token, 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ requests: requests })
+  });
+  if (!res.ok) throw new Error('Turso HTTP ' + res.status + ': ' + await res.text());
+  var data = await res.json();
+  // Check for errors in results
+  var results = data.results || [];
+  results.forEach(function(r, i) {
+    if (r.type === 'error') throw new Error('SQL error [stmt ' + i + ']: ' + (r.error && r.error.message));
+  });
+  return results.filter(function(r) { return r.type !== 'error'; }).map(function(r) {
+    return r.response && r.response.result ? r.response.result : r;
+  });
+}
+
+// Convert a Turso result object into an array of plain JS objects
+function rows(result) {
+  if (!result || !result.rows) return [];
+  var cols = (result.cols || []).map(function(c) { return c.name; });
+  return result.rows.map(function(row) {
+    var obj = {};
+    cols.forEach(function(col, i) {
+      var cell = row[i];
+      obj[col] = cell ? cell.value : null;
+      // Convert numeric strings back to numbers
+      if (cell && cell.type === 'float' && obj[col] !== null) obj[col] = parseFloat(obj[col]);
+      if (cell && cell.type === 'integer' && obj[col] !== null) obj[col] = parseInt(obj[col]);
+    });
+    return obj;
+  });
+}
+
+// Get last inserted rowid from a result
+function lastInsertId(result) {
+  return result && result.last_insert_rowid ? parseInt(result.last_insert_rowid) : null;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  NAV, TOAST, DELETE CONFIRM
+// ════════════════════════════════════════════════════════════════════
+var allInvoices = [], supply = 'intra', liCount = 0;
+
+function go(id) {
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelectorAll('.ttab,.btab').forEach(function(t) { t.classList.toggle('active', t.dataset.page === id); });
+  window.scrollTo(0, 0);
   if (id === 'dashboard')  loadDashboard();
   if (id === 'invoices')   loadInvoices();
   if (id === 'new-invoice') initForm();
   if (id === 'config')     loadConfig();
   if (id === 'data')       loadAudit();
-  // Scroll to top on navigation
-  window.scrollTo(0, 0);
 }
-
-// Wire up all nav buttons via event delegation (no inline onclick on nav)
-['top-tabs','bot-tabs'].forEach(navId => {
-  const nav = document.getElementById(navId);
-  if (nav) nav.addEventListener('click', function(e) {
-    const btn = e.target.closest('[data-page]');
-    if (btn) go(btn.dataset.page);
-  });
+['top-tabs','bot-tabs'].forEach(function(nid) {
+  var nav = document.getElementById(nid);
+  if (nav) nav.addEventListener('click', function(e) { var b = e.target.closest('[data-page]'); if (b) go(b.dataset.page); });
 });
 
-// ══ TOAST (no confirm() — works in all browsers) ══════════════════
 function toast(msg, type) {
   type = type || 'success';
   var t = document.getElementById('toast');
-  var icons = {success:'✅', error:'❌', info:'ℹ️'};
-  t.textContent = (icons[type] || '') + ' ' + msg;
-  t.className = 'toast ' + type + ' show';
-  clearTimeout(t._tid);
-  t._tid = setTimeout(function() { t.classList.remove('show'); }, 3200);
+  t.textContent = ({success:'✅',error:'❌',info:'ℹ️'}[type]||'') + ' ' + msg;
+  t.className = 'toast ' + type + ' show'; clearTimeout(t._t);
+  t._t = setTimeout(function() { t.classList.remove('show'); }, 3200);
 }
 
-// ══ DELETE CONFIRM (inline, no window.confirm) ════════════════════
 function askDel(id, label) {
-  cancelDel();
   document.getElementById('del-label').textContent = label;
   document.getElementById('del-confirm-btn').onclick = function() { doDel(id); };
   document.getElementById('del-box').classList.add('open');
 }
-function cancelDel() {
-  document.getElementById('del-box').classList.remove('open');
-}
-function doDel(id) {
+function cancelDel() { document.getElementById('del-box').classList.remove('open'); }
+async function doDel(id) {
   cancelDel();
-  fetch(API + '/invoices/' + id, {method:'DELETE'})
-    .then(function(r) {
-      if (r.ok) { toast('Invoice deleted'); loadInvoices(); }
-      else toast('Delete failed','error');
-    }).catch(function() { toast('Network error','error'); });
+  try {
+    await turso([
+      { sql: 'DELETE FROM line_items WHERE invoice_id = ?', args: [id] },
+      { sql: 'DELETE FROM invoices WHERE id = ?', args: [id] },
+      { sql: 'INSERT INTO audit_log(ts,action,entity,entity_id,detail) VALUES(?,?,?,?,?)',
+        args: [now(), 'DELETE', 'invoice', id, ''] }
+    ]);
+    toast('Invoice deleted'); loadInvoices();
+  } catch(e) { toast(e.message, 'error'); }
 }
 
-// ══ HELPERS ════════════════════════════════════════════════════════
-function q(s) { return document.querySelector(s); }
+// ════════════════════════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════════════════════════
 function qi(id) { return document.getElementById(id); }
-function fmt(n) { return Math.round(n).toLocaleString('en-IN'); }
-function n2s(n) { return n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function fmtS(n) {
-  if (n >= 1e7) return (n/1e7).toFixed(1)+'Cr';
-  if (n >= 1e5) return (n/1e5).toFixed(1)+'L';
-  if (n >= 1e3) return (n/1e3).toFixed(0)+'K';
-  return Math.round(n)+'';
-}
+function q(s) { return document.querySelector(s); }
+function esc(v) { return v != null ? String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;') : ''; }
+function fmt(n) { return Math.round(n||0).toLocaleString('en-IN'); }
+function n2s(n) { return (n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtS(n) { if(n>=1e7) return (n/1e7).toFixed(1)+'Cr'; if(n>=1e5) return (n/1e5).toFixed(1)+'L'; if(n>=1e3) return (n/1e3).toFixed(0)+'K'; return Math.round(n)+''; }
 function today() { return new Date().toISOString().split('T')[0]; }
-function esc(v) { return v != null ? String(v).replace(/"/g,'&quot;').replace(/</g,'&lt;') : ''; }
-
+function now() { return new Date().toISOString(); }
 function numWords(n) {
-  if (!n) return 'Zero Rupees';
-  var ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
-    'Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
-  var tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
-  function c(n) {
-    if (n<20) return ones[n];
-    if (n<100) return tens[Math.floor(n/10)]+(n%10?' '+ones[n%10]:'');
-    if (n<1000) return ones[Math.floor(n/100)]+' Hundred'+(n%100?' '+c(n%100):'');
-    if (n<100000) return c(Math.floor(n/1000))+' Thousand'+(n%1000?' '+c(n%1000):'');
-    if (n<10000000) return c(Math.floor(n/100000))+' Lakh'+(n%100000?' '+c(n%100000):'');
-    return c(Math.floor(n/10000000))+' Crore'+(n%10000000?' '+c(n%10000000):'');
-  }
+  if(!n) return 'Zero Rupees';
+  var o=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  var t=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function c(n){if(n<20)return o[n];if(n<100)return t[Math.floor(n/10)]+(n%10?' '+o[n%10]:'');if(n<1e3)return o[Math.floor(n/100)]+' Hundred'+(n%100?' '+c(n%100):'');if(n<1e5)return c(Math.floor(n/1e3))+' Thousand'+(n%1e3?' '+c(n%1e3):'');if(n<1e7)return c(Math.floor(n/1e5))+' Lakh'+(n%1e5?' '+c(n%1e5):'');return c(Math.floor(n/1e7))+' Crore'+(n%1e7?' '+c(n%1e7):'');}
   return 'Rupees '+c(Math.round(n));
 }
 
-// ══ DASHBOARD ══════════════════════════════════════════════════════
-function loadDashboard() {
-  Promise.all([
-    fetch(API+'/reports/summary').then(function(r){return r.json();}).catch(function(){return {};}),
-    fetch(API+'/invoices').then(function(r){return r.json();}).catch(function(){return [];})
-  ]).then(function(res) {
-    var rep=res[0], invs=res[1];
-    allInvoices = invs;
-    var gst=(rep.total_cgst||0)+(rep.total_sgst||0)+(rep.total_igst||0);
+// Fetch all line items for a list of invoice ids in one query
+async function fetchLineItems(invoiceIds) {
+  if (!invoiceIds.length) return {};
+  var placeholders = invoiceIds.map(function() { return '?'; }).join(',');
+  var res = await turso({ sql: 'SELECT * FROM line_items WHERE invoice_id IN (' + placeholders + ') ORDER BY invoice_id, sr_no', args: invoiceIds });
+  var items = rows(res[0]);
+  var map = {};
+  items.forEach(function(it) { var id = parseInt(it.invoice_id); if (!map[id]) map[id] = []; map[id].push(it); });
+  return map;
+}
+
+function calcTotals(items) {
+  var tv=0, cg=0, sg=0, ig=0;
+  (items||[]).forEach(function(it) {
+    tv += parseFloat(it.taxable_value||0);
+    cg += parseFloat(it.cgst_amt||0);
+    sg += parseFloat(it.sgst_amt||0);
+    ig += parseFloat(it.igst_amt||0);
+  });
+  var grand = tv+cg+sg+ig;
+  return { total_taxable:tv, total_cgst:cg, total_sgst:sg, total_igst:ig, total:Math.round(grand), grand_exact:grand };
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  DASHBOARD
+// ════════════════════════════════════════════════════════════════════
+async function loadDashboard() {
+  qi('cfg-error').classList.toggle('show', !isConfigured());
+  if (!isConfigured()) { qi('sgrid').innerHTML = '<div class="sc ac"><div class="sc-lbl">Status</div><div class="sc-val" style="font-size:1rem">Not configured</div></div><div class="sc"></div><div class="sc"></div><div class="sc"></div>'; return; }
+  try {
+    var res = await turso({ sql: 'SELECT * FROM invoices ORDER BY id DESC', args: [] });
+    allInvoices = rows(res[0]);
+    var ids = allInvoices.map(function(inv) { return parseInt(inv.id); });
+    var itemMap = await fetchLineItems(ids);
+    allInvoices.forEach(function(inv) { inv._items = itemMap[parseInt(inv.id)] || []; inv._totals = calcTotals(inv._items); });
+
+    var totalValue = allInvoices.reduce(function(s,inv) { return s + (inv._totals.total||0); }, 0);
+    var totalTaxable = allInvoices.reduce(function(s,inv) { return s + (inv._totals.total_taxable||0); }, 0);
+    var totalGST = allInvoices.reduce(function(s,inv) { return s + (inv._totals.total_cgst||0) + (inv._totals.total_sgst||0) + (inv._totals.total_igst||0); }, 0);
+
     qi('sgrid').innerHTML =
-      '<div class="sc ac"><div class="sc-lbl">Total Invoices</div><div class="sc-val">'+( rep.total_invoices||0)+'</div><div class="sc-sub">All time</div></div>'+
-      '<div class="sc gc"><div class="sc-lbl">Total Revenue</div><div class="sc-val">₹'+fmt(rep.total_value||0)+'</div><div class="sc-sub">Incl. GST</div></div>'+
-      '<div class="sc"><div class="sc-lbl">Taxable Value</div><div class="sc-val">₹'+fmt(rep.total_taxable||0)+'</div><div class="sc-sub">Pre-GST</div></div>'+
-      '<div class="sc"><div class="sc-lbl">Total GST</div><div class="sc-val">₹'+fmt(gst)+'</div><div class="sc-sub">CGST+SGST+IGST</div></div>';
-    // Chart
-    var mo=rep.monthly||{}, months=Object.keys(mo).sort().slice(-6);
-    var vals=months.map(function(m){return mo[m]&&mo[m].total||0;});
-    var mx=Math.max.apply(null,vals.concat([1]));
+      '<div class="sc ac"><div class="sc-lbl">Total Invoices</div><div class="sc-val">'+allInvoices.length+'</div><div class="sc-sub">All time</div></div>'+
+      '<div class="sc gc"><div class="sc-lbl">Total Revenue</div><div class="sc-val">₹'+fmt(totalValue)+'</div><div class="sc-sub">Incl. GST</div></div>'+
+      '<div class="sc"><div class="sc-lbl">Taxable Value</div><div class="sc-val">₹'+fmt(totalTaxable)+'</div><div class="sc-sub">Pre-GST</div></div>'+
+      '<div class="sc"><div class="sc-lbl">Total GST</div><div class="sc-val">₹'+fmt(totalGST)+'</div><div class="sc-sub">CGST+SGST+IGST</div></div>';
+
+    // Monthly chart
+    var mo = {};
+    allInvoices.forEach(function(inv) { var m=(inv.invoice_date||'').substring(0,7)||'Unknown'; mo[m]=(mo[m]||0)+(inv._totals.total||0); });
+    var months = Object.keys(mo).sort().slice(-6);
+    var vals = months.map(function(m){return mo[m]||0;});
+    var mx = Math.max.apply(null, vals.concat([1]));
     qi('chart-bars').innerHTML = months.length ? months.map(function(m,i){
       var h=Math.max(3,Math.round((vals[i]/mx)*96));
       return '<div class="bg"><div class="bv">'+(vals[i]>0?'₹'+fmtS(vals[i]):'')+'</div><div class="bar" style="height:'+h+'px"></div><div class="bl">'+m+'</div></div>';
     }).join('') : '<div style="margin:auto;color:var(--muted);font-size:.8rem">No data yet</div>';
+
     // Top clients
-    var tc=rep.top_clients||[];
+    var clients = {};
+    allInvoices.forEach(function(inv) { var n=inv.client_name||'Unknown'; clients[n]=(clients[n]||0)+(inv._totals.total||0); });
+    var tc = Object.keys(clients).map(function(n){return{name:n,total:clients[n]};}).sort(function(a,b){return b.total-a.total;}).slice(0,5);
     qi('top-clients').innerHTML = tc.length ? tc.map(function(c){
-      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">'+
-        '<div style="font-size:.81rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58%">'+esc(c.name)+'</div>'+
-        '<div style="font-family:var(--mono);font-size:.76rem;color:var(--saffron);font-weight:700">₹'+fmt(c.total)+'</div></div>';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)"><div style="font-size:.81rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58%">'+esc(c.name)+'</div><div style="font-family:var(--mono);font-size:.76rem;color:var(--saffron);font-weight:700">₹'+fmt(c.total)+'</div></div>';
     }).join('') : '<div style="color:var(--muted);font-size:.8rem">No clients yet</div>';
+
     // Recent
-    var recent=invs.slice(0,5);
+    var recent = allInvoices.slice(0,5);
     qi('recent-table').innerHTML = recent.length ?
       '<table><thead><tr><th>Invoice No</th><th>Date</th><th>Client</th><th>Total</th><th>Status</th></tr></thead><tbody>'+
-      recent.map(function(inv){return '<tr><td class="mono">'+esc(inv.invoice_no)+'</td><td>'+esc(inv.invoice_date||'')+'</td><td>'+esc(inv.client_name||'')+'</td><td class="mono">₹'+fmt(inv.total||0)+'</td><td><span class="badge badge-'+esc(inv.status)+'">'+esc(inv.status)+'</span></td></tr>';}).join('')+
-      '</tbody></table>' :
-      '<div class="empty"><div class="em">📭</div><p>No invoices yet</p></div>';
-  });
+      recent.map(function(inv){return '<tr><td class="mono">'+esc(inv.invoice_no)+'</td><td>'+esc(inv.invoice_date||'')+'</td><td>'+esc(inv.client_name||'')+'</td><td class="mono">₹'+fmt(inv._totals.total)+'</td><td><span class="badge badge-'+esc(inv.status)+'">'+esc(inv.status)+'</span></td></tr>';}).join('')+
+      '</tbody></table>' : '<div class="empty"><div class="em">📭</div><p>No invoices yet</p></div>';
+  } catch(e) { toast(e.message, 'error'); }
 }
 
-// ══ INVOICES LIST ══════════════════════════════════════════════════
-function loadInvoices() {
-  fetch(API+'/invoices').then(function(r){return r.json();}).then(function(invs){
-    allInvoices = invs;
-    renderTable(invs);
-  }).catch(function(){ toast('Could not load invoices','error'); });
+// ════════════════════════════════════════════════════════════════════
+//  INVOICE LIST
+// ════════════════════════════════════════════════════════════════════
+async function loadInvoices() {
+  if (!isConfigured()) { toast('Configure Turso in Settings first', 'error'); return; }
+  try {
+    var res = await turso({ sql: 'SELECT * FROM invoices ORDER BY id DESC', args: [] });
+    allInvoices = rows(res[0]);
+    var ids = allInvoices.map(function(inv) { return parseInt(inv.id); });
+    var itemMap = await fetchLineItems(ids);
+    allInvoices.forEach(function(inv) { inv._items = itemMap[parseInt(inv.id)]||[]; inv._totals = calcTotals(inv._items); });
+    renderTable(allInvoices);
+  } catch(e) { toast(e.message,'error'); }
 }
 
 function renderTable(invs) {
-  if (!invs.length) {
-    qi('inv-tbody').innerHTML='<tr><td colspan="8"><div class="empty"><div class="em">📭</div><p>No invoices found</p></div></td></tr>';
-    return;
-  }
-  qi('inv-tbody').innerHTML = invs.map(function(inv){
-    var gst=(inv.total_cgst||0)+(inv.total_sgst||0)+(inv.total_igst||0);
+  if (!invs.length) { qi('inv-tbody').innerHTML='<tr><td colspan="8"><div class="empty"><div class="em">📭</div><p>No invoices</p></div></td></tr>'; return; }
+  qi('inv-tbody').innerHTML = invs.map(function(inv) {
+    var gst=(inv._totals.total_cgst||0)+(inv._totals.total_sgst||0)+(inv._totals.total_igst||0);
     var no=esc(inv.invoice_no||'—');
-    return '<tr>'+
-      '<td class="mono" style="font-weight:700">'+no+'</td>'+
-      '<td>'+esc(inv.invoice_date||'—')+'</td>'+
-      '<td style="font-weight:600">'+esc(inv.client_name||'—')+'</td>'+
-      '<td class="mono">₹'+fmt(inv.total_taxable||0)+'</td>'+
-      '<td class="mono" style="color:var(--green)">₹'+fmt(gst)+'</td>'+
-      '<td class="mono" style="font-weight:700;color:var(--saffron)">₹'+fmt(inv.total||0)+'</td>'+
-      '<td><span class="badge badge-'+esc(inv.status)+'">'+esc(inv.status)+'</span></td>'+
-      '<td><div style="display:flex;gap:4px">'+
-        '<button class="btn btn-ghost btn-icon btn-sm" onclick="editInvoice('+inv.id+')" title="Edit">✏️</button>'+
-        '<button class="btn btn-ghost btn-icon btn-sm" onclick="xpdf('+inv.id+')" title="PDF">📄</button>'+
-        '<button class="btn btn-ghost btn-icon btn-sm" onclick="xxls('+inv.id+')" title="Excel">📊</button>'+
-        '<button class="btn btn-ghost btn-icon btn-sm" onclick="askDel('+inv.id+',\''+no+'\')" title="Delete">🗑️</button>'+
-      '</div></td></tr>';
+    return '<tr><td class="mono" style="font-weight:700">'+no+'</td><td>'+esc(inv.invoice_date||'—')+'</td><td style="font-weight:600">'+esc(inv.client_name||'—')+'</td><td class="mono">₹'+fmt(inv._totals.total_taxable)+'</td><td class="mono" style="color:var(--green)">₹'+fmt(gst)+'</td><td class="mono" style="font-weight:700;color:var(--saffron)">₹'+fmt(inv._totals.total)+'</td><td><span class="badge badge-'+esc(inv.status)+'">'+esc(inv.status)+'</span></td><td><div style="display:flex;gap:4px"><button class="btn btn-ghost btn-icon btn-sm" onclick="editInvoice('+inv.id+')" title="Edit">✏️</button><button class="btn btn-ghost btn-icon btn-sm" onclick="exportPDF('+inv.id+')" title="PDF">📄</button><button class="btn btn-ghost btn-icon btn-sm" onclick="exportExcel('+inv.id+')" title="Excel">📊</button><button class="btn btn-ghost btn-icon btn-sm" onclick="askDel('+inv.id+',\''+no+'\')" title="Delete">🗑️</button></div></td></tr>';
   }).join('');
 }
 
 function filterInvoices() {
-  var q2=qi('search-input').value.toLowerCase();
-  renderTable(allInvoices.filter(function(inv){
-    return (inv.invoice_no||'').toLowerCase().indexOf(q2)>=0||
-           (inv.client_name||'').toLowerCase().indexOf(q2)>=0;
-  }));
+  var q2 = qi('search-input').value.toLowerCase();
+  renderTable(allInvoices.filter(function(inv) { return (inv.invoice_no||'').toLowerCase().indexOf(q2)>=0||(inv.client_name||'').toLowerCase().indexOf(q2)>=0; }));
 }
 
-function xpdf(id){ window.open(API+'/invoices/'+id+'/pdf','_blank'); }
-function xxls(id){ window.open(API+'/invoices/'+id+'/excel','_blank'); }
-
-// ══ INVOICE FORM ════════════════════════════════════════════════════
-function initForm() {
-  qi('inv-title').textContent='New Invoice';
-  qi('edit-id').value='';
-  qi('f-no').value=''; qi('f-date').value=today();
-  qi('f-po').value=''; qi('f-client').value='';
-  qi('f-cgstin').value=''; qi('f-caddr').value=''; qi('f-notes').value='';
+// ════════════════════════════════════════════════════════════════════
+//  INVOICE FORM
+// ════════════════════════════════════════════════════════════════════
+async function initForm() {
+  qi('inv-title').textContent='New Invoice'; qi('edit-id').value='';
+  qi('f-no').value=''; qi('f-date').value=today(); qi('f-po').value='';
+  qi('f-client').value=''; qi('f-cgstin').value=''; qi('f-caddr').value=''; qi('f-notes').value='';
   qi('sopt-intra').classList.add('active'); qi('sopt-inter').classList.remove('active');
-  setSupply('intra');
-  liCount=0; qi('li-body').innerHTML='<tr><td colspan="12" class="li-hint">Tap "+ Add Item" to begin</td></tr>';
+  setSupply('intra'); liCount=0;
+  qi('li-body').innerHTML='<tr><td colspan="12" class="li-hint">Tap "+ Add Item" to begin</td></tr>';
   updateSum();
-  fetch(API+'/next-invoice-no').then(function(r){return r.json();}).then(function(d){
-    if(d.invoice_no) qi('f-no').value=d.invoice_no;
-  }).catch(function(){});
+  // Auto-generate invoice number
+  try {
+    var res = await turso({ sql: 'SELECT COUNT(*) as c FROM invoices', args: [] });
+    var count = parseInt((rows(res[0])[0]||{}).c||0);
+    var cfgRes = await turso({ sql: 'SELECT company_name FROM config WHERE id=1', args: [] });
+    var cfgRow = rows(cfgRes[0])[0] || {};
+    var name = cfgRow.company_name || '';
+    var prefix = name.split(' ').filter(Boolean).map(function(w){return w[0].toUpperCase();}).join('').substring(0,4) || 'INV';
+    var yr = new Date(); var fy = yr.getMonth()>=3 ? yr.getFullYear()+'-'+String(yr.getFullYear()+1).slice(-2) : (yr.getFullYear()-1)+'-'+String(yr.getFullYear()).slice(-2);
+    qi('f-no').value = prefix + '/' + (count+1) + '/' + fy;
+  } catch(e) {}
 }
 
-function editInvoice(id) {
+async function editInvoice(id) {
   go('new-invoice');
-  fetch(API+'/invoices/'+id).then(function(r){return r.json();}).then(function(inv){
-    qi('inv-title').textContent='Edit: '+inv.invoice_no;
-    qi('edit-id').value=id;
-    qi('f-no').value=inv.invoice_no||'';
-    qi('f-date').value=inv.invoice_date||'';
-    qi('f-po').value=inv.po_no||'';
-    qi('f-client').value=inv.client_name||'';
-    qi('f-cgstin').value=inv.client_gstin||'';
-    qi('f-caddr').value=inv.client_address||'';
-    qi('f-notes').value=inv.notes||'';
+  try {
+    var res = await turso([
+      { sql: 'SELECT * FROM invoices WHERE id=?', args:[id] },
+      { sql: 'SELECT * FROM line_items WHERE invoice_id=? ORDER BY sr_no', args:[id] }
+    ]);
+    var inv = rows(res[0])[0]; if(!inv) return;
+    var items = rows(res[1]);
+    qi('inv-title').textContent='Edit: '+inv.invoice_no; qi('edit-id').value=id;
+    qi('f-no').value=inv.invoice_no||''; qi('f-date').value=inv.invoice_date||'';
+    qi('f-po').value=inv.po_no||''; qi('f-client').value=inv.client_name||'';
+    qi('f-cgstin').value=inv.client_gstin||''; qi('f-caddr').value=inv.client_address||''; qi('f-notes').value=inv.notes||'';
     var st=inv.supply_type||'intra';
-    qi('sopt-intra').classList.toggle('active',st==='intra');
-    qi('sopt-inter').classList.toggle('active',st==='inter');
-    setSupply(st);
-    liCount=0; qi('li-body').innerHTML='';
-    (inv.line_items||[]).forEach(function(item){ addLI(item); });
-    if(!(inv.line_items||[]).length) qi('li-body').innerHTML='<tr><td colspan="12" class="li-hint">Tap "+ Add Item" to begin</td></tr>';
+    qi('sopt-intra').classList.toggle('active',st==='intra'); qi('sopt-inter').classList.toggle('active',st==='inter');
+    setSupply(st); liCount=0; qi('li-body').innerHTML='';
+    items.forEach(function(item){addLI(item);});
+    if(!items.length) qi('li-body').innerHTML='<tr><td colspan="12" class="li-hint">Tap "+ Add Item" to begin</td></tr>';
     updateSum();
-  }).catch(function(){ toast('Could not load invoice','error'); });
+  } catch(e) { toast(e.message,'error'); }
 }
 
 function setSupply(type) {
-  supply=type;
-  qi('f-supply').value=type;
-  qi('sopt-intra').classList.toggle('active',type==='intra');
-  qi('sopt-inter').classList.toggle('active',type==='inter');
+  supply=type; qi('f-supply').value=type;
+  qi('sopt-intra').classList.toggle('active',type==='intra'); qi('sopt-inter').classList.toggle('active',type==='inter');
   var intra=type==='intra';
-  qi('th1').textContent=intra?'CGST%':'IGST%';
-  qi('th2').textContent=intra?'CGST Amt':'IGST Amt';
-  qi('th3').style.display=intra?'':'none';
-  qi('th4').style.display=intra?'':'none';
-  qi('s-cgst-r').style.display=intra?'':'none';
-  qi('s-sgst-r').style.display=intra?'':'none';
-  qi('s-igst-r').style.display=intra?'none':'';
-  document.querySelectorAll('.sgst-col').forEach(function(el){ el.style.display=intra?'':'none'; });
-  updateSum();
+  qi('th1').textContent=intra?'CGST%':'IGST%'; qi('th2').textContent=intra?'CGST Amt':'IGST Amt';
+  qi('th3').style.display=intra?'':'none'; qi('th4').style.display=intra?'':'none';
+  qi('s-cgst-r').style.display=intra?'':'none'; qi('s-sgst-r').style.display=intra?'':'none'; qi('s-igst-r').style.display=intra?'none':'';
+  document.querySelectorAll('.sgst-col').forEach(function(el){el.style.display=intra?'':'none';}); updateSum();
 }
 
 function addLI(data) {
-  if (liCount>=20){ toast('Max 20 line items','error'); return; }
-  var hint=q('.li-hint');
-  if(hint) hint.closest('tr').remove();
-  liCount++;
-  var i=liCount, st=supply, sd=st==='intra'?'':'display:none';
+  if(liCount>=20){toast('Max 20 line items','error');return;}
+  var hint=q('.li-hint'); if(hint) hint.closest('tr').remove();
+  liCount++; var i=liCount, st=supply, sd=st==='intra'?'':'display:none';
   var t1v=data?(st==='intra'?data.cgst_rate:data.igst_rate):9;
   var t1a=data?(st==='intra'?data.cgst_amt:data.igst_amt):'0.00';
-  var tr=document.createElement('tr');
-  tr.id='li-'+i; tr.dataset.idx=i;
-  tr.innerHTML=
-    '<td style="text-align:center;font-weight:700;color:var(--muted);font-size:.75rem">'+i+'</td>'+
+  var tr=document.createElement('tr'); tr.id='li-'+i; tr.dataset.idx=i;
+  tr.innerHTML='<td style="text-align:center;font-weight:700;color:var(--muted);font-size:.75rem">'+i+'</td>'+
     '<td><input type="text" placeholder="Service description" class="li-d" data-r="'+i+'" value="'+esc(data&&data.description)+'"></td>'+
     '<td><input type="text" placeholder="998739" class="li-h" data-r="'+i+'" value="'+esc(data&&data.hsn_sac)+'"></td>'+
     '<td><input type="number" placeholder="0" class="li-q" data-r="'+i+'" value="'+(data&&data.qty!=null?data.qty:'')+'" oninput="calc('+i+')"></td>'+
     '<td><input type="text" placeholder="Nos" class="li-u" data-r="'+i+'" value="'+esc(data&&data.unit)+'"></td>'+
     '<td><input type="number" placeholder="0.00" class="li-r" data-r="'+i+'" value="'+(data&&data.rate!=null?data.rate:'')+'" oninput="calc('+i+')"></td>'+
-    '<td><input type="text" class="calc li-tv" data-r="'+i+'" readonly value="'+(data&&data.taxable_value!=null?data.taxable_value:'0.00')+'"></td>'+
+    '<td><input type="text" class="calc li-tv" data-r="'+i+'" readonly value="'+(data&&data.taxable_value!=null?parseFloat(data.taxable_value).toFixed(2):'0.00')+'"></td>'+
     '<td><input type="number" placeholder="9" class="li-t1r" data-r="'+i+'" value="'+t1v+'" oninput="calc('+i+')" style="max-width:52px"></td>'+
-    '<td><input type="text" class="calc li-t1a" data-r="'+i+'" readonly value="'+t1a+'"></td>'+
+    '<td><input type="text" class="calc li-t1a" data-r="'+i+'" readonly value="'+(t1a!=null?parseFloat(t1a).toFixed(2):'0.00')+'"></td>'+
     '<td class="sgst-col" style="'+sd+'"><input type="number" placeholder="9" class="li-sgr" data-r="'+i+'" value="'+(data&&data.sgst_rate!=null?data.sgst_rate:9)+'" oninput="calc('+i+')" style="max-width:52px"></td>'+
-    '<td class="sgst-col" style="'+sd+'"><input type="text" class="calc li-sga" data-r="'+i+'" readonly value="'+(data&&data.sgst_amt!=null?data.sgst_amt:'0.00')+'"></td>'+
+    '<td class="sgst-col" style="'+sd+'"><input type="text" class="calc li-sga" data-r="'+i+'" readonly value="'+(data&&data.sgst_amt!=null?parseFloat(data.sgst_amt).toFixed(2):'0.00')+'"></td>'+
     '<td><button class="btn btn-danger btn-icon btn-sm" onclick="remLI('+i+')" style="padding:5px">✕</button></td>';
   qi('li-body').appendChild(tr);
   if(data) calc(i);
-  qi('li-body').querySelector('.li-d[data-r="'+i+'"]').focus();
 }
-
-function remLI(i) {
-  var el=qi('li-'+i); if(el) el.remove();
-  if(!document.querySelectorAll('#li-body tr[data-idx]').length){
-    qi('li-body').innerHTML='<tr><td colspan="12" class="li-hint">Tap "+ Add Item" to begin</td></tr>';
-    liCount=0;
-  }
-  updateSum();
-}
-
-function calc(i) {
+function remLI(i){var el=qi('li-'+i);if(el)el.remove();if(!document.querySelectorAll('#li-body tr[data-idx]').length){qi('li-body').innerHTML='<tr><td colspan="12" class="li-hint">Tap "+ Add Item" to begin</td></tr>';liCount=0;}updateSum();}
+function calc(i){
   var qty=parseFloat((q('.li-q[data-r="'+i+'"]')||{}).value)||0;
   var rate=parseFloat((q('.li-r[data-r="'+i+'"]')||{}).value)||0;
   var tv=qty*rate;
   var t1r=parseFloat((q('.li-t1r[data-r="'+i+'"]')||{}).value)||0;
   var sgr=parseFloat((q('.li-sgr[data-r="'+i+'"]')||{}).value)||0;
-  var t1a=Math.round(tv*t1r/100*100)/100;
-  var sga=Math.round(tv*sgr/100*100)/100;
-  function sv(sel,v){ var el=q(sel); if(el) el.value=v; }
-  sv('.li-tv[data-r="'+i+'"]',tv.toFixed(2));
-  sv('.li-t1a[data-r="'+i+'"]',t1a.toFixed(2));
-  sv('.li-sga[data-r="'+i+'"]',sga.toFixed(2));
-  updateSum();
+  var t1a=Math.round(tv*t1r/100*100)/100, sga=Math.round(tv*sgr/100*100)/100;
+  function sv(sel,v){var el=q(sel);if(el)el.value=v;}
+  sv('.li-tv[data-r="'+i+'"]',tv.toFixed(2)); sv('.li-t1a[data-r="'+i+'"]',t1a.toFixed(2)); sv('.li-sga[data-r="'+i+'"]',sga.toFixed(2)); updateSum();
 }
-
-function updateSum() {
+function updateSum(){
   var tv=0,cg=0,sg=0,ig=0;
   document.querySelectorAll('#li-body tr[data-idx]').forEach(function(row){
     var i=row.dataset.idx;
@@ -810,180 +661,390 @@ function updateSum() {
     var s2=parseFloat((q('.li-sga[data-r="'+i+'"]')||{}).value)||0;
     if(supply==='intra'){cg+=t1;sg+=s2;}else{ig+=t1;}
   });
-  var grand=tv+cg+sg+ig, rounded=Math.round(grand), roff=rounded-grand;
-  qi('s-tv').textContent='₹'+n2s(tv);
-  qi('s-cgst').textContent='₹'+n2s(cg);
-  qi('s-sgst').textContent='₹'+n2s(sg);
-  qi('s-igst').textContent='₹'+n2s(ig);
-  qi('s-roff').textContent=(roff>=0?'+':'')+n2s(roff);
-  qi('s-tot').textContent='₹'+fmt(rounded);
-  qi('s-words').textContent=numWords(rounded)+' Only';
+  var grand=tv+cg+sg+ig,rounded=Math.round(grand),roff=rounded-grand;
+  qi('s-tv').textContent='₹'+n2s(tv); qi('s-cgst').textContent='₹'+n2s(cg); qi('s-sgst').textContent='₹'+n2s(sg); qi('s-igst').textContent='₹'+n2s(ig);
+  qi('s-roff').textContent=(roff>=0?'+':'')+n2s(roff); qi('s-tot').textContent='₹'+fmt(rounded); qi('s-words').textContent=numWords(rounded)+' Only';
 }
 
-function saveInvoice(status) {
+async function saveInvoice(status) {
+  if (!isConfigured()) { toast('Configure Turso in Settings first','error'); return; }
   var invId=qi('edit-id').value;
   var items=[]; var sr=1;
   document.querySelectorAll('#li-body tr[data-idx]').forEach(function(row){
     var i=row.dataset.idx;
     var t1r=parseFloat((q('.li-t1r[data-r="'+i+'"]')||{}).value)||0;
-    items.push({
-      sr_no:sr++,
+    items.push({sr_no:sr++,
       description:(q('.li-d[data-r="'+i+'"]')||{}).value||'',
       hsn_sac:(q('.li-h[data-r="'+i+'"]')||{}).value||'',
       qty:parseFloat((q('.li-q[data-r="'+i+'"]')||{}).value)||0,
       unit:(q('.li-u[data-r="'+i+'"]')||{}).value||'',
       rate:parseFloat((q('.li-r[data-r="'+i+'"]')||{}).value)||0,
       taxable_value:parseFloat((q('.li-tv[data-r="'+i+'"]')||{}).value)||0,
-      cgst_rate:supply==='intra'?t1r:0,
-      cgst_amt:supply==='intra'?(parseFloat((q('.li-t1a[data-r="'+i+'"]')||{}).value)||0):0,
+      cgst_rate:supply==='intra'?t1r:0, cgst_amt:supply==='intra'?(parseFloat((q('.li-t1a[data-r="'+i+'"]')||{}).value)||0):0,
       sgst_rate:supply==='intra'?(parseFloat((q('.li-sgr[data-r="'+i+'"]')||{}).value)||0):0,
       sgst_amt:supply==='intra'?(parseFloat((q('.li-sga[data-r="'+i+'"]')||{}).value)||0):0,
-      igst_rate:supply==='inter'?t1r:0,
-      igst_amt:supply==='inter'?(parseFloat((q('.li-t1a[data-r="'+i+'"]')||{}).value)||0):0
+      igst_rate:supply==='inter'?t1r:0, igst_amt:supply==='inter'?(parseFloat((q('.li-t1a[data-r="'+i+'"]')||{}).value)||0):0});
+  });
+  var no=qi('f-no').value,dt=qi('f-date').value,cl=qi('f-client').value;
+  if(!no||!dt||!cl){toast('Invoice No, Date and Client Name required','error');return;}
+  var ts=now();
+  try {
+    var stmts=[];
+    if(invId){
+      stmts.push({sql:'UPDATE invoices SET invoice_no=?,invoice_date=?,po_no=?,client_name=?,client_address=?,client_gstin=?,supply_type=?,notes=?,status=?,updated_at=? WHERE id=?',
+        args:[no,dt,qi('f-po').value,cl,qi('f-caddr').value,qi('f-cgstin').value,supply,qi('f-notes').value,status,ts,invId]});
+      stmts.push({sql:'DELETE FROM line_items WHERE invoice_id=?',args:[invId]});
+    } else {
+      stmts.push({sql:'INSERT INTO invoices(invoice_no,invoice_date,po_no,client_name,client_address,client_gstin,supply_type,notes,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+        args:[no,dt,qi('f-po').value,cl,qi('f-caddr').value,qi('f-cgstin').value,supply,qi('f-notes').value,status,ts,ts]});
+    }
+    var res = await turso(stmts);
+    var actualId = invId ? parseInt(invId) : lastInsertId(res[0]);
+
+    // Insert line items
+    var liStmts = items.map(function(it){return{sql:'INSERT INTO line_items(invoice_id,sr_no,description,hsn_sac,qty,unit,rate,taxable_value,cgst_rate,cgst_amt,sgst_rate,sgst_amt,igst_rate,igst_amt) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      args:[actualId,it.sr_no,it.description,it.hsn_sac,it.qty,it.unit,it.rate,it.taxable_value,it.cgst_rate,it.cgst_amt,it.sgst_rate,it.sgst_amt,it.igst_rate,it.igst_amt]};});
+    liStmts.push({sql:'INSERT INTO audit_log(ts,action,entity,entity_id,detail) VALUES(?,?,?,?,?)',args:[ts,invId?'UPDATE':'CREATE','invoice',actualId,no]});
+    await turso(liStmts);
+
+    qi('edit-id').value=actualId; qi('inv-title').textContent='Edit: '+no;
+    toast(invId?'Invoice updated!':'Invoice created!');
+    showExportPrompt(actualId, items, no, dt, cl, qi('f-cgstin').value, qi('f-caddr').value, qi('f-notes').value, status);
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function showExportPrompt(id, items, invNo, invDate, clientName, clientGstin, clientAddr, notes, status) {
+  var ex=qi('export-prompt'); if(ex) ex.remove();
+  var div=document.createElement('div'); div.id='export-prompt';
+  div.style.cssText='position:fixed;bottom:calc(var(--bot-h)+70px);right:16px;z-index:9998;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:.83rem;max-width:260px';
+  div.innerHTML='<div style="font-weight:700;margin-bottom:8px">Saved! Export?</div><div style="display:flex;gap:8px">'+
+    '<button class="btn btn-outline btn-sm" onclick="this.closest(\'#export-prompt\').remove()">Later</button>'+
+    '<button class="btn btn-primary btn-sm" onclick="exportPDFData('+id+');this.closest(\'#export-prompt\').remove()">📄 PDF</button>'+
+    '<button class="btn btn-blue btn-sm" onclick="exportExcelData('+id+');this.closest(\'#export-prompt\').remove()">📊 XLS</button></div>';
+  document.body.appendChild(div);
+  setTimeout(function(){if(qi('export-prompt'))qi('export-prompt').remove();},8000);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  PDF EXPORT (jsPDF — browser-side, no backend)
+// ════════════════════════════════════════════════════════════════════
+async function exportPDF(id) {
+  try {
+    var res = await turso([{sql:'SELECT * FROM invoices WHERE id=?',args:[id]},{sql:'SELECT * FROM line_items WHERE invoice_id=? ORDER BY sr_no',args:[id]}]);
+    var inv = rows(res[0])[0]; if(!inv){toast('Invoice not found','error');return;}
+    var items = rows(res[1]);
+    var cfgRes = await turso({sql:'SELECT * FROM config WHERE id=1',args:[]});
+    var cfg = rows(cfgRes[0])[0]||{};
+    buildPDF(inv, items, cfg);
+  } catch(e) { toast(e.message,'error'); }
+}
+async function exportExcel(id) {
+  try {
+    var res = await turso([{sql:'SELECT * FROM invoices WHERE id=?',args:[id]},{sql:'SELECT * FROM line_items WHERE invoice_id=? ORDER BY sr_no',args:[id]}]);
+    var inv = rows(res[0])[0]; var items = rows(res[1]);
+    var cfgRes = await turso({sql:'SELECT * FROM config WHERE id=1',args:[]});
+    var cfg = rows(cfgRes[0])[0]||{};
+    buildExcel(inv, items, cfg);
+  } catch(e){ toast(e.message,'error'); }
+}
+async function exportPDFData(id){ exportPDF(id); }
+async function exportExcelData(id){ exportExcel(id); }
+
+function buildPDF(inv, items, cfg) {
+  var { jsPDF } = window.jspdf;
+  var doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  var W = 190, margin = 10, y = 10;
+  var navy=[15,23,42], saffron=[255,107,0], green=[10,138,74], hdrBlue=[189,215,238], greenBg=[226,239,218];
+
+  // Header
+  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,8,'F');
+  doc.setTextColor.apply(doc,navy); doc.setFontSize(14); doc.setFont('helvetica','bold');
+  doc.text('TAX INVOICE', 105, y+5.5, {align:'center'}); y+=9;
+  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,6,'F');
+  doc.setFontSize(10); doc.text(cfg.company_name||'', 105, y+4.2, {align:'center'}); y+=7;
+  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,5,'F');
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  doc.text('GSTIN: '+(cfg.gstin||'')+'  |  Ph: '+(cfg.contact||'')+'  |  '+(cfg.email||''), 105, y+3.5, {align:'center'}); y+=5.5;
+  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,5,'F');
+  doc.text(cfg.address||'', 105, y+3.5, {align:'center'}); y+=7;
+
+  // Meta
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+  doc.text('Invoice No:', margin, y+4); doc.setFont('helvetica','normal'); doc.text(inv.invoice_no||'', margin+22, y+4);
+  doc.setFont('helvetica','bold'); doc.text('Date:', 130, y+4); doc.setFont('helvetica','normal'); doc.text(inv.invoice_date||'', 143, y+4);
+  y+=6;
+  doc.setFont('helvetica','bold'); doc.text('PO No:', margin, y+4); doc.setFont('helvetica','normal'); doc.text(inv.po_no||'', margin+22, y+4);
+  doc.setFont('helvetica','bold'); doc.text('Status:', 130, y+4); doc.setFont('helvetica','normal'); doc.text((inv.status||'').toUpperCase(), 143, y+4);
+  y+=8;
+
+  // Bill To
+  doc.setFillColor(233,239,247); doc.rect(margin,y,W,5,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor.apply(doc,navy);
+  doc.text('BILL TO', margin+2, y+3.5); y+=5;
+  doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(0,0,0);
+  doc.text(inv.client_name||'', margin+2, y+4); y+=5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  if(inv.client_address) { doc.text(inv.client_address.substring(0,90), margin+2, y+3.5); y+=4.5; }
+  doc.text('GSTIN: '+(inv.client_gstin||''), margin+2, y+3.5); y+=7;
+
+  // Line items table
+  var supply = inv.supply_type||'intra';
+  var head, cols;
+  if(supply==='intra') {
+    head=[['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable Val','CGST%','CGST Amt','SGST%','SGST Amt','Total']];
+    cols=['sr_no','description','hsn_sac','qty','unit','rate','taxable_value','cgst_rate','cgst_amt','sgst_rate','sgst_amt','_total'];
+  } else {
+    head=[['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable Val','IGST%','IGST Amt','Total']];
+    cols=['sr_no','description','hsn_sac','qty','unit','rate','taxable_value','igst_rate','igst_amt','_total'];
+  }
+  var tv_tot=0,cg_tot=0,sg_tot=0,ig_tot=0;
+  var body = items.map(function(it){
+    var tv=parseFloat(it.taxable_value||0),ca=parseFloat(it.cgst_amt||0),sa=parseFloat(it.sgst_amt||0),ia=parseFloat(it.igst_amt||0);
+    var lt=tv+ca+sa+ia; tv_tot+=tv;cg_tot+=ca;sg_tot+=sa;ig_tot+=ia;
+    it._total=lt;
+    return cols.map(function(col){
+      var v=it[col];
+      if(['rate','taxable_value','cgst_amt','sgst_amt','igst_amt','_total'].indexOf(col)>=0) return '₹'+n2s(parseFloat(v||0));
+      if(['cgst_rate','sgst_rate','igst_rate'].indexOf(col)>=0) return (v||0)+'%';
+      if(['qty'].indexOf(col)>=0) return parseFloat(v||0).toFixed(2);
+      return v||'';
     });
   });
-  var no=qi('f-no').value, dt=qi('f-date').value, cl=qi('f-client').value;
-  if(!no||!dt||!cl){ toast('Invoice No, Date and Client Name are required','error'); return; }
-  var body={invoice_no:no,invoice_date:dt,po_no:qi('f-po').value,
-    client_name:cl,client_gstin:qi('f-cgstin').value,client_address:qi('f-caddr').value,
-    supply_type:supply,notes:qi('f-notes').value,status:status,line_items:items};
-  var url=invId?API+'/invoices/'+invId:API+'/invoices';
-  var method=invId?'PUT':'POST';
-  fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
-    .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,data:d}; }); })
-    .then(function(res){
-      if(res.ok){
-        var actualId=invId||res.data.id;
-        qi('edit-id').value=actualId;
-        qi('inv-title').textContent='Edit: '+no;
-        toast(invId?'Invoice updated!':'Invoice created!');
-        // Use a non-blocking prompt instead of confirm()
-        showExportPrompt(actualId);
-      } else {
-        toast(res.data.error||'Save failed','error');
-      }
-    }).catch(function(err){ toast('Network error — is the server running?','error'); });
+  var grand=tv_tot+cg_tot+sg_tot+ig_tot, rounded=Math.round(grand), roff=rounded-grand;
+
+  doc.autoTable({head:head, body:body, startY:y, margin:{left:margin,right:margin},
+    styles:{fontSize:7,cellPadding:2}, headStyles:{fillColor:navy,textColor:[255,255,255],fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[247,251,255]},
+    columnStyles:{0:{cellWidth:8},1:{cellWidth:40}}
+  });
+  y = doc.lastAutoTable.finalY + 3;
+
+  // Totals summary
+  var sumRows=[['Round Off', (roff>=0?'+':'')+n2s(roff)],['TOTAL INVOICE VALUE','₹'+fmt(rounded)],['Amount in Words',numWords(rounded)+' Only']];
+  doc.autoTable({body:sumRows, startY:y, margin:{left:margin+60,right:margin},
+    styles:{fontSize:8,cellPadding:3},
+    bodyStyles:{}, columnStyles:{0:{fontStyle:'bold',cellWidth:50},1:{cellWidth:80}},
+    didParseCell:function(data){if(data.row.index===1){data.cell.styles.fillColor=greenBg;data.cell.styles.fontStyle='bold';}}
+  });
+  y = doc.lastAutoTable.finalY + 4;
+
+  // Bank + signature
+  doc.setFontSize(7.5); doc.setTextColor(0,0,0); doc.setFont('helvetica','bold');
+  doc.text('Bank: ', margin, y+3); doc.setFont('helvetica','normal');
+  doc.text((cfg.bank_name||'')+' | A/C: '+(cfg.account_no||'')+' | IFSC: '+(cfg.ifsc||''), margin+10, y+3); y+=5;
+  doc.setFont('helvetica','bold'); doc.text('Branch: ', margin, y+3); doc.setFont('helvetica','normal');
+  doc.text((cfg.branch||'')+' | '+( cfg.account_type||''), margin+13, y+3); y+=7;
+  doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.text('For '+(cfg.company_name||''), 150, y+3); y+=12;
+  doc.text((cfg.signatory_name||''), 150, y+3); y+=4;
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.text(cfg.signatory_title||'', 150, y+3);
+
+  doc.save('Invoice_'+(inv.invoice_no||'').replace(/\//g,'_')+'.pdf');
+  toast('PDF downloaded!');
 }
 
-// Non-blocking export prompt (replaces browser confirm())
-function showExportPrompt(id) {
-  var existing=qi('export-prompt');
-  if(existing) existing.remove();
-  var div=document.createElement('div');
-  div.id='export-prompt';
-  div.style.cssText='position:fixed;bottom:calc(var(--bot-h)+70px);right:16px;z-index:9998;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:.83rem;max-width:260px';
-  div.innerHTML='<div style="font-weight:700;margin-bottom:8px">Invoice saved! Export?</div>'+
-    '<div style="display:flex;gap:8px">'+
-    '<button class="btn btn-outline btn-sm" onclick="this.closest(\'#export-prompt\').remove()">Later</button>'+
-    '<button class="btn btn-primary btn-sm" onclick="xpdf('+id+');this.closest(\'#export-prompt\').remove()">📄 PDF</button>'+
-    '<button class="btn btn-blue btn-sm" onclick="xxls('+id+');this.closest(\'#export-prompt\').remove()">📊 XLS</button>'+
-    '</div>';
-  document.body.appendChild(div);
-  setTimeout(function(){ if(qi('export-prompt')) qi('export-prompt').remove(); }, 8000);
+// ════════════════════════════════════════════════════════════════════
+//  EXCEL EXPORT (SheetJS — browser-side)
+// ════════════════════════════════════════════════════════════════════
+function buildExcel(inv, items, cfg) {
+  var wb = XLSX.utils.book_new();
+  var ws_data = [];
+  ws_data.push(['TAX INVOICE']);
+  ws_data.push([cfg.company_name||'','','','','','','Invoice No:','','',inv.invoice_no||'']);
+  ws_data.push(['GSTIN: '+(cfg.gstin||''),'','','','','','Date:','','',inv.invoice_date||'']);
+  ws_data.push([cfg.address||'','','','','','','PO No:','','',inv.po_no||'']);
+  ws_data.push([]);
+  ws_data.push(['BILL TO']);
+  ws_data.push([inv.client_name||'']);
+  ws_data.push([inv.client_address||'']);
+  ws_data.push(['GSTIN: '+(inv.client_gstin||'')]);
+  ws_data.push([]);
+  ws_data.push(['SR','DESCRIPTION','HSN/SAC','QTY','UNIT','RATE','TAXABLE VALUE','CGST%','CGST AMT','SGST%','SGST AMT','IGST%','IGST AMT']);
+  var tv_tot=0,cg_tot=0,sg_tot=0,ig_tot=0;
+  items.forEach(function(it){
+    var tv=parseFloat(it.taxable_value||0),ca=parseFloat(it.cgst_amt||0),sa=parseFloat(it.sgst_amt||0),ia=parseFloat(it.igst_amt||0);
+    tv_tot+=tv;cg_tot+=ca;sg_tot+=sa;ig_tot+=ia;
+    ws_data.push([it.sr_no,it.description,it.hsn_sac,parseFloat(it.qty||0),it.unit,parseFloat(it.rate||0),tv,parseFloat(it.cgst_rate||0),ca,parseFloat(it.sgst_rate||0),sa,parseFloat(it.igst_rate||0),ia]);
+  });
+  var grand=tv_tot+cg_tot+sg_tot+ig_tot, rounded=Math.round(grand);
+  ws_data.push([]);
+  ws_data.push(['','','','','','','TAXABLE TOTAL','','',tv_tot,'','','']);
+  ws_data.push(['','','','','','','CGST TOTAL','','',cg_tot]);
+  ws_data.push(['','','','','','','SGST TOTAL','','',sg_tot]);
+  ws_data.push(['','','','','','','IGST TOTAL','','',ig_tot]);
+  ws_data.push(['','','','','','','ROUND OFF','','',Math.round(grand)-grand]);
+  ws_data.push(['','','','','','','TOTAL INVOICE VALUE','','',rounded]);
+  ws_data.push(['','','','','','','AMOUNT IN WORDS','','',numWords(rounded)+' Only']);
+  ws_data.push([]);
+  ws_data.push(['BANK DETAILS']);
+  ws_data.push(['Bank',cfg.bank_name||'']);
+  ws_data.push(['Account No',cfg.account_no||'']);
+  ws_data.push(['IFSC',cfg.ifsc||'']);
+  ws_data.push(['Branch',cfg.branch||'']);
+  ws_data.push(['Signatory',cfg.signatory_name||'','',cfg.signatory_title||'']);
+  var ws = XLSX.utils.aoa_to_sheet(ws_data);
+  ws['!cols']=[{wch:6},{wch:28},{wch:10},{wch:8},{wch:7},{wch:10},{wch:13},{wch:7},{wch:11},{wch:7},{wch:11},{wch:7},{wch:11}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Invoice');
+  XLSX.writeFile(wb, 'Invoice_'+(inv.invoice_no||'').replace(/\//g,'_')+'.xlsx');
+  toast('Excel downloaded!');
 }
 
-// ══ CONFIG ══════════════════════════════════════════════════════════
-function loadConfig() {
-  fetch(API+'/config').then(function(r){return r.json();}).then(function(c){
-    var map={'c-name':'company_name','c-gstin':'gstin','c-contact':'contact','c-email':'email',
-      'c-addr':'address','c-state':'state_code','c-bname':'beneficiary_name',
-      'c-accno':'account_no','c-ifsc':'ifsc','c-bank':'bank_name','c-branch':'branch',
-      'c-actype':'account_type','c-signame':'signatory_name','c-sigtitle':'signatory_title'};
-    Object.keys(map).forEach(function(el){
-      var e=qi(el); if(e&&c[map[el]]) e.value=c[map[el]];
+// ════════════════════════════════════════════════════════════════════
+//  CONFIG (Turso creds stored in localStorage + company in DB)
+// ════════════════════════════════════════════════════════════════════
+async function loadConfig() {
+  // Load Turso creds from localStorage
+  qi('t-url').value = localStorage.getItem('turso_url') || (window.TURSO_URL !== '__TURSO_URL__' ? window.TURSO_URL : '');
+  qi('t-token').value = localStorage.getItem('turso_token') || (window.TURSO_TOKEN !== '__TURSO_TOKEN__' ? window.TURSO_TOKEN : '');
+  // Load company config from DB
+  if(!isConfigured()) return;
+  try {
+    var res = await turso({sql:'SELECT * FROM config WHERE id=1',args:[]});
+    var c = rows(res[0])[0]||{};
+    var map={'c-name':'company_name','c-gstin':'gstin','c-contact':'contact','c-email':'email','c-addr':'address','c-state':'state_code','c-bname':'beneficiary_name','c-accno':'account_no','c-ifsc':'ifsc','c-bank':'bank_name','c-branch':'branch','c-actype':'account_type','c-signame':'signatory_name','c-sigtitle':'signatory_title'};
+    Object.keys(map).forEach(function(el){var e=qi(el);if(e&&c[map[el]])e.value=c[map[el]];});
+  } catch(e){}
+}
+
+async function saveTursoConfig() {
+  var url = qi('t-url').value.trim().replace(/\/$/, '');
+  var token = qi('t-token').value.trim();
+  if(!url||!token){toast('Enter both URL and Token','error');return;}
+  // Test connection
+  qi('turso-test-result').textContent = '⏳ Testing…';
+  try {
+    var res = await fetch(url+'/health', {headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    localStorage.setItem('turso_url', url);
+    localStorage.setItem('turso_token', token);
+    qi('turso-test-result').textContent = '✅ Connected!';
+    qi('cfg-error').classList.remove('show');
+    toast('Turso connected and saved!');
+  } catch(e) {
+    qi('turso-test-result').textContent = '❌ Failed: '+e.message;
+    toast('Connection failed: '+e.message, 'error');
+  }
+}
+
+async function saveConfig() {
+  if(!isConfigured()){toast('Configure Turso connection first','error');return;}
+  var data=[qi('c-name').value,qi('c-gstin').value,qi('c-addr').value,qi('c-contact').value,qi('c-email').value,qi('c-bank').value,qi('c-accno').value,qi('c-ifsc').value,qi('c-branch').value,qi('c-actype').value,qi('c-bname').value,qi('c-signame').value,qi('c-sigtitle').value,'',qi('c-state').value];
+  try {
+    var exists = rows((await turso({sql:'SELECT id FROM config WHERE id=1',args:[]}))[0]).length > 0;
+    if(exists){
+      await turso({sql:'UPDATE config SET company_name=?,gstin=?,address=?,contact=?,email=?,bank_name=?,account_no=?,ifsc=?,branch=?,account_type=?,beneficiary_name=?,signatory_name=?,signatory_title=?,logo_url=?,state_code=? WHERE id=1',args:data});
+    } else {
+      await turso({sql:'INSERT INTO config(id,company_name,gstin,address,contact,email,bank_name,account_no,ifsc,branch,account_type,beneficiary_name,signatory_name,signatory_title,logo_url,state_code) VALUES(1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',args:data});
+    }
+    toast('Settings saved!');
+  } catch(e){toast(e.message,'error');}
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  BACKUP / RESTORE / CSV
+// ════════════════════════════════════════════════════════════════════
+async function dlBackup() {
+  if(!isConfigured()){toast('Configure Turso first','error');return;}
+  try {
+    var res = await turso([{sql:'SELECT * FROM config WHERE id=1',args:[]},{sql:'SELECT * FROM invoices ORDER BY id',args:[]}]);
+    var cfg = rows(res[0])[0]||{};
+    var invs = rows(res[1]);
+    var ids = invs.map(function(inv){return parseInt(inv.id);});
+    var itemMap = ids.length ? await fetchLineItems(ids) : {};
+    invs.forEach(function(inv){inv.line_items=itemMap[parseInt(inv.id)]||[];});
+    var data = {exported_at:now(),version:'1.0',config:cfg,invoices:invs};
+    var blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    var a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='gst_backup_'+new Date().toISOString().replace(/[:.]/g,'').substring(0,15)+'.json';
+    a.click(); toast('Backup downloaded!');
+  } catch(e){toast(e.message,'error');}
+}
+
+async function dlCSV() {
+  if(!isConfigured()){toast('Configure Turso first','error');return;}
+  try {
+    var res = await turso({sql:'SELECT * FROM invoices ORDER BY id',args:[]});
+    var invs = rows(res[0]);
+    var ids = invs.map(function(inv){return parseInt(inv.id);});
+    var itemMap = ids.length ? await fetchLineItems(ids) : {};
+    var lines = [['Invoice No','Date','PO No','Client','Client GSTIN','Supply Type','Taxable Value','CGST','SGST','IGST','Total','Status'].join(',')];
+    invs.forEach(function(inv){
+      var t=calcTotals(itemMap[parseInt(inv.id)]||[]);
+      lines.push([inv.invoice_no,inv.invoice_date,inv.po_no,'"'+(inv.client_name||'')+'"',inv.client_gstin,inv.supply_type,t.total_taxable,t.total_cgst,t.total_sgst,t.total_igst,t.total,inv.status].join(','));
     });
-  }).catch(function(){});
+    var blob = new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv'});
+    var a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='invoices_'+today()+'.csv'; a.click(); toast('CSV downloaded!');
+  } catch(e){toast(e.message,'error');}
 }
 
-function saveConfig() {
-  var data={
-    company_name:qi('c-name').value,gstin:qi('c-gstin').value,
-    contact:qi('c-contact').value,email:qi('c-email').value,
-    address:qi('c-addr').value,state_code:qi('c-state').value,
-    beneficiary_name:qi('c-bname').value,account_no:qi('c-accno').value,
-    ifsc:qi('c-ifsc').value,bank_name:qi('c-bank').value,
-    branch:qi('c-branch').value,account_type:qi('c-actype').value,
-    signatory_name:qi('c-signame').value,signatory_title:qi('c-sigtitle').value
-  };
-  fetch(API+'/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-    .then(function(r){
-      if(r.ok) toast('Settings saved!'); else toast('Save failed','error');
-    }).catch(function(){ toast('Network error','error'); });
-}
-
-// ══ BACKUP / RESTORE ════════════════════════════════════════════════
-function dlBackup(){ window.open(API+'/backup','_blank'); }
-function dlCSV(){ window.open(API+'/export-csv','_blank'); }
-
-// File restore — using FileReader for max browser compatibility
 function doRestore(file) {
   if(!file) return;
-  if(!file.name.toLowerCase().endsWith('.json') && file.type !== 'application/json'){
-    toast('Please select a .json backup file','error'); return;
-  }
-  qi('restore-status').innerHTML='<span style="color:var(--muted)">⏳ Reading file…</span>';
-  var reader=new FileReader();
-  reader.onload=function(e){
-    var text=e.target.result;
-    qi('restore-status').innerHTML='<span style="color:var(--muted)">⏳ Uploading…</span>';
-    // Send as JSON directly instead of FormData (more compatible)
-    var parsed;
-    try{ parsed=JSON.parse(text); }
-    catch(err){ qi('restore-status').innerHTML='<span style="color:#DC2626">❌ Invalid JSON file</span>'; return; }
-    fetch(API+'/restore-json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(parsed)})
-      .then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d};});})
-      .then(function(res){
-        if(res.ok){
-          qi('restore-status').innerHTML='<span style="color:var(--green)">✅ Restored: '+res.data.created+' added, '+res.data.skipped+' skipped</span>';
-          toast('Restore complete: '+res.data.created+' added, '+res.data.skipped+' skipped');
-          loadAudit();
-        } else {
-          qi('restore-status').innerHTML='<span style="color:#DC2626">❌ '+esc(res.data.error||'Restore failed')+'</span>';
-          toast(res.data.error||'Restore failed','error');
+  if(!isConfigured()){toast('Configure Turso first','error');return;}
+  qi('restore-status').innerHTML='<span style="color:var(--muted)">⏳ Reading…</span>';
+  var reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      var created=0, skipped=0;
+      for(var i=0;i<(data.invoices||[]).length;i++){
+        var inv=data.invoices[i];
+        var exists=rows((await turso({sql:'SELECT id FROM invoices WHERE invoice_no=?',args:[inv.invoice_no]}))[0]).length>0;
+        if(exists){skipped++;continue;}
+        var ts=now();
+        var res=await turso({sql:'INSERT INTO invoices(invoice_no,invoice_date,po_no,client_name,client_address,client_gstin,supply_type,notes,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+          args:[inv.invoice_no,inv.invoice_date,inv.po_no,inv.client_name,inv.client_address,inv.client_gstin,inv.supply_type,inv.notes,inv.status,ts,ts]});
+        var newId=lastInsertId(res[0]);
+        if(newId&&inv.line_items&&inv.line_items.length){
+          var liStmts=inv.line_items.map(function(it){return{sql:'INSERT INTO line_items(invoice_id,sr_no,description,hsn_sac,qty,unit,rate,taxable_value,cgst_rate,cgst_amt,sgst_rate,sgst_amt,igst_rate,igst_amt) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            args:[newId,it.sr_no,it.description,it.hsn_sac,it.qty,it.unit,it.rate,it.taxable_value,it.cgst_rate,it.cgst_amt,it.sgst_rate,it.sgst_amt,it.igst_rate,it.igst_amt]};});
+          await turso(liStmts);
         }
-      }).catch(function(){ qi('restore-status').innerHTML='<span style="color:#DC2626">❌ Network error</span>'; toast('Network error','error'); });
+        created++;
+      }
+      await turso({sql:'INSERT INTO audit_log(ts,action,entity,entity_id,detail) VALUES(?,?,?,?,?)',args:[now(),'RESTORE','backup',0,'created='+created+' skipped='+skipped]});
+      qi('restore-status').innerHTML='<span style="color:var(--green)">✅ Restored: '+created+' added, '+skipped+' skipped</span>';
+      toast('Restore complete: '+created+' added, '+skipped+' skipped');
+      loadAudit();
+    } catch(err) {
+      qi('restore-status').innerHTML='<span style="color:#DC2626">❌ '+esc(err.message)+'</span>';
+      toast(err.message,'error');
+    }
   };
-  reader.onerror=function(){ toast('Could not read file','error'); };
   reader.readAsText(file);
 }
 
-// Wire up file input — button triggers hidden input
+async function loadAudit() {
+  if(!isConfigured()) return;
+  try {
+    var res = await turso({sql:'SELECT * FROM audit_log ORDER BY id DESC LIMIT 100',args:[]});
+    var log = rows(res[0]);
+    var cls={CREATE:'a-c',UPDATE:'a-u',DELETE:'a-d',RESTORE:'a-r'};
+    qi('audit-tbody').innerHTML = log.length ? log.map(function(r){
+      return '<tr><td style="font-size:.75rem;color:var(--muted);white-space:nowrap">'+esc((r.ts||'').replace('T',' ').substring(0,19))+'</td><td><span class="aa '+(cls[r.action]||'')+'">'+esc(r.action)+'</span></td><td style="font-size:.8rem">'+esc(r.entity)+' #'+esc(r.entity_id)+'</td><td style="font-size:.8rem;color:var(--slate)">'+esc(r.detail||'')+'</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="li-hint">No activity yet</td></tr>';
+  } catch(e){}
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
-  var btn=qi('pick-file-btn');
-  var inp=qi('restore-input');
-  var upz=qi('upz');
+  qi('f-date').value = today();
 
-  if(btn) btn.addEventListener('click', function(e){ e.preventDefault(); inp.click(); });
-  if(upz) upz.addEventListener('click', function(){ inp.click(); });
-  if(inp) inp.addEventListener('change', function(){ if(this.files[0]) doRestore(this.files[0]); this.value=''; });
-
-  // Drag and drop
+  // File restore wiring
+  var btn=qi('pick-file-btn'),inp=qi('restore-input'),upz=qi('upz');
+  if(btn) btn.addEventListener('click',function(e){e.preventDefault();inp.click();});
+  if(upz) upz.addEventListener('click',function(){inp.click();});
+  if(inp) inp.addEventListener('change',function(){if(this.files[0])doRestore(this.files[0]);this.value='';});
   if(upz){
     upz.addEventListener('dragover',function(e){e.preventDefault();this.classList.add('drag');});
     upz.addEventListener('dragleave',function(){this.classList.remove('drag');});
-    upz.addEventListener('drop',function(e){
-      e.preventDefault(); this.classList.remove('drag');
-      var f=e.dataTransfer.files[0]; if(f) doRestore(f);
-    });
+    upz.addEventListener('drop',function(e){e.preventDefault();this.classList.remove('drag');var f=e.dataTransfer.files[0];if(f)doRestore(f);});
   }
 
-  // Init
-  qi('f-date').value=today();
   loadDashboard();
 });
-
-// ══ AUDIT LOG ═══════════════════════════════════════════════════════
-function loadAudit() {
-  fetch(API+'/audit-log').then(function(r){return r.json();}).then(function(rows){
-    var cls={CREATE:'a-c',UPDATE:'a-u',DELETE:'a-d',RESTORE:'a-r'};
-    qi('audit-tbody').innerHTML=rows.length?rows.map(function(r){
-      return '<tr><td style="font-size:.75rem;color:var(--muted);white-space:nowrap">'+(r.ts||'').replace('T',' ').substring(0,19)+'</td>'+
-        '<td><span class="aa '+(cls[r.action]||'')+'">'+esc(r.action)+'</span></td>'+
-        '<td style="font-size:.8rem">'+esc(r.entity)+' #'+r.entity_id+'</td>'+
-        '<td style="font-size:.8rem;color:var(--slate)">'+esc(r.detail||'')+'</td></tr>';
-    }).join(''):'<tr><td colspan="4" class="li-hint">No activity yet</td></tr>';
-  }).catch(function(){});
-}
 </script>
 </body>
 </html>

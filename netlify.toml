@@ -1,5 +1,5 @@
 [[redirects]]
-  from = "/api-db/*"
-  to = "https://bbpsgsttest-sujitkale.aws-ap-south-1.turso.io"
+  from = "/api-db/"
+  to = "https://bbpsgsttest-sujitkale.aws-ap-south-1.turso.io/"
   status = 200
   force = true

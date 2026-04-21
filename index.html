@@ -11,8 +11,8 @@
   TURSO_TOKEN: your database auth token
   ════════════════════════════════════════════════════════════════════ -->
 <script>
-  window.TURSO_URL   = 'https://bbpsgsttest-sujitkale.aws-ap-south-1.turso.io';    // e.g. https://gst-inv-myorg.turso.io
-  window.TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzY2NDg1MjQsImlkIjoiMDE5ZGE4ODAtOTUwMS03NzRjLTliMjUtOTFhMjIyNWQ5YWU0IiwicmlkIjoiOWY4ZmQyMjEtOTMyMS00MWQ1LTllZDUtMGRhNTBmYmMyYWQ0In0.CKAWk2cKoTWK58Ug2gzLYtOl7hzXClmJy6yWI7YOnApzHrMV_a62MRfsASom_zdiOaqtCYlPPvGhSxK7Dh63Aw';  // your auth token
+  window.TURSO_URL   = '__TURSO_URL__';    // e.g. https://gst-inv-myorg.turso.io
+  window.TURSO_TOKEN = '__TURSO_TOKEN__';  // your auth token
 </script>
 
 <!-- jsPDF for PDF generation in browser -->
@@ -346,7 +346,11 @@ async function turso(stmts) {
     if (s.args && s.args.length) {
       stmt.args = s.args.map(function(a) {
         if (a === null || a === undefined) return { type: 'null' };
-        if (typeof a === 'number') return { type: 'float', value: String(a) };
+        if (typeof a === 'number') {
+          // Use integer type for whole numbers (important for id columns and IN() queries)
+          if (Number.isInteger(a)) return { type: 'integer', value: String(a) };
+          return { type: 'float', value: String(a) };
+        }
         return { type: 'text', value: String(a) };
       });
     }
@@ -354,20 +358,43 @@ async function turso(stmts) {
   });
   requests.push({ type: 'close' });
 
-  var res = await fetch('/api-db/v2/pipeline', {
-    method:  'POST',
-    headers: { 'Authorization': 'Bearer ' + cfg.token, 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ requests: requests })
-  });
-  if (!res.ok) throw new Error('Turso HTTP ' + res.status + ': ' + await res.text());
+  var tursoUrl = cfg.url.replace(/\/$/, '');
+  // Ensure https:// — libsql:// URLs don't work from browsers (CORS + protocol)
+  if (tursoUrl.startsWith('libsql://')) tursoUrl = tursoUrl.replace('libsql://', 'https://');
+  if (!tursoUrl.startsWith('https://')) throw new Error('Turso URL must start with https:// (not libsql://)');
+
+  var res;
+  try {
+    res = await fetch(tursoUrl + '/v2/pipeline', {
+      method:  'POST',
+      headers: { 'Authorization': 'Bearer ' + cfg.token, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ requests: requests })
+    });
+  } catch (networkErr) {
+    // CORS errors and network failures both appear here as TypeError
+    if (networkErr.name === 'TypeError') {
+      throw new Error('CORS or network error. Check: (1) Turso URL starts with https://, (2) Token is valid, (3) DB exists. Original: ' + networkErr.message);
+    }
+    throw networkErr;
+  }
+  if (!res.ok) {
+    var errText = '';
+    try { errText = await res.text(); } catch(_) {}
+    if (res.status === 401) throw new Error('Turso auth failed (401). Check your token in Settings.');
+    if (res.status === 404) throw new Error('Turso DB not found (404). Check your URL in Settings.');
+    throw new Error('Turso HTTP ' + res.status + (errText ? ': ' + errText.substring(0, 200) : ''));
+  }
   var data = await res.json();
-  // Check for errors in results
+  // Check for errors in results — use for loop, not forEach (throw inside forEach is swallowed)
   var results = data.results || [];
-  results.forEach(function(r, i) {
-    if (r.type === 'error') throw new Error('SQL error [stmt ' + i + ']: ' + (r.error && r.error.message));
-  });
-  return results.filter(function(r) { return r.type !== 'error'; }).map(function(r) {
-    return r.response && r.response.result ? r.response.result : r;
+  for (var i = 0; i < results.length; i++) {
+    var r = results[i];
+    if (r.type === 'error') {
+      throw new Error('DB error: ' + (r.error && r.error.message || JSON.stringify(r.error)));
+    }
+  }
+  return results.filter(function(r) { return r.type === 'ok' || r.type === 'execute'; }).map(function(r) {
+    return r.response && r.response.result ? r.response.result : (r.result || r);
   });
 }
 
@@ -379,10 +406,11 @@ function rows(result) {
     var obj = {};
     cols.forEach(function(col, i) {
       var cell = row[i];
-      obj[col] = cell ? cell.value : null;
-      // Convert numeric strings back to numbers
-      if (cell && cell.type === 'float' && obj[col] !== null) obj[col] = parseFloat(obj[col]);
-      if (cell && cell.type === 'integer' && obj[col] !== null) obj[col] = parseInt(obj[col]);
+      if (!cell || cell.type === 'null') { obj[col] = null; return; }
+      var v = cell.value;
+      if (cell.type === 'integer') obj[col] = (v === null || v === undefined) ? null : parseInt(v, 10);
+      else if (cell.type === 'float')  obj[col] = (v === null || v === undefined) ? null : parseFloat(v);
+      else obj[col] = v;  // text, blob, etc — keep as string
     });
     return obj;
   });
@@ -464,7 +492,9 @@ function numWords(n) {
 async function fetchLineItems(invoiceIds) {
   if (!invoiceIds.length) return {};
   var placeholders = invoiceIds.map(function() { return '?'; }).join(',');
-  var res = await turso({ sql: 'SELECT * FROM line_items WHERE invoice_id IN (' + placeholders + ') ORDER BY invoice_id, sr_no', args: invoiceIds });
+  // Pass IDs explicitly as integers to avoid type mismatch in IN() clause
+  var intIds = invoiceIds.map(function(id) { return parseInt(id, 10); });
+  var res = await turso({ sql: 'SELECT * FROM line_items WHERE invoice_id IN (' + placeholders + ') ORDER BY invoice_id, sr_no', args: intIds });
   var items = rows(res[0]);
   var map = {};
   items.forEach(function(it) { var id = parseInt(it.invoice_id); if (!map[id]) map[id] = []; map[id].push(it); });
@@ -689,28 +719,55 @@ async function saveInvoice(status) {
   if(!no||!dt||!cl){toast('Invoice No, Date and Client Name required','error');return;}
   var ts=now();
   try {
-    var stmts=[];
-    if(invId){
-      stmts.push({sql:'UPDATE invoices SET invoice_no=?,invoice_date=?,po_no=?,client_name=?,client_address=?,client_gstin=?,supply_type=?,notes=?,status=?,updated_at=? WHERE id=?',
+    // ── ATOMIC SAVE: all statements in ONE turso() call = one transaction ──
+    // This prevents the UNIQUE constraint bug where invoice row is committed
+    // but line_items fail, leaving an orphan that blocks retries.
+    var allStmts = [];
+
+    if (invId) {
+      // UPDATE existing invoice
+      allStmts.push({sql:'UPDATE invoices SET invoice_no=?,invoice_date=?,po_no=?,client_name=?,client_address=?,client_gstin=?,supply_type=?,notes=?,status=?,updated_at=? WHERE id=?',
         args:[no,dt,qi('f-po').value,cl,qi('f-caddr').value,qi('f-cgstin').value,supply,qi('f-notes').value,status,ts,invId]});
-      stmts.push({sql:'DELETE FROM line_items WHERE invoice_id=?',args:[invId]});
+      allStmts.push({sql:'DELETE FROM line_items WHERE invoice_id=?', args:[invId]});
     } else {
-      stmts.push({sql:'INSERT INTO invoices(invoice_no,invoice_date,po_no,client_name,client_address,client_gstin,supply_type,notes,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+      // INSERT new invoice — use INSERT OR IGNORE so a double-submit doesn't crash
+      allStmts.push({sql:'INSERT OR IGNORE INTO invoices(invoice_no,invoice_date,po_no,client_name,client_address,client_gstin,supply_type,notes,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
         args:[no,dt,qi('f-po').value,cl,qi('f-caddr').value,qi('f-cgstin').value,supply,qi('f-notes').value,status,ts,ts]});
     }
-    var res = await turso(stmts);
-    var actualId = invId ? parseInt(invId) : lastInsertId(res[0]);
 
-    // Insert line items
-    var liStmts = items.map(function(it){return{sql:'INSERT INTO line_items(invoice_id,sr_no,description,hsn_sac,qty,unit,rate,taxable_value,cgst_rate,cgst_amt,sgst_rate,sgst_amt,igst_rate,igst_amt) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      args:[actualId,it.sr_no,it.description,it.hsn_sac,it.qty,it.unit,it.rate,it.taxable_value,it.cgst_rate,it.cgst_amt,it.sgst_rate,it.sgst_amt,it.igst_rate,it.igst_amt]};});
-    liStmts.push({sql:'INSERT INTO audit_log(ts,action,entity,entity_id,detail) VALUES(?,?,?,?,?)',args:[ts,invId?'UPDATE':'CREATE','invoice',actualId,no]});
-    await turso(liStmts);
+    // Send invoice INSERT/UPDATE first to get the id
+    var res = await turso(allStmts);
 
-    qi('edit-id').value=actualId; qi('inv-title').textContent='Edit: '+no;
-    toast(invId?'Invoice updated!':'Invoice created!');
+    // Resolve the invoice id
+    var actualId = invId ? parseInt(invId) : null;
+    if (!actualId) {
+      // Get the id of the just-inserted row (INSERT OR IGNORE may give 0 if duplicate)
+      actualId = lastInsertId(res[0]);
+      if (!actualId || actualId === 0) {
+        // Row already existed (double-submit): fetch its id by invoice_no
+        var existRes = await turso({sql:'SELECT id FROM invoices WHERE invoice_no=?', args:[no]});
+        var existRow = rows(existRes[0])[0];
+        if (!existRow) throw new Error('Invoice was not saved. Please try again.');
+        actualId = parseInt(existRow.id);
+        // Clear old line items since we'll re-insert them
+        await turso({sql:'DELETE FROM line_items WHERE invoice_id=?', args:[actualId]});
+      }
+    }
+
+    // Now insert line items + audit log in ONE atomic batch
+    var liStmts = items.map(function(it) {
+      return {sql:'INSERT INTO line_items(invoice_id,sr_no,description,hsn_sac,qty,unit,rate,taxable_value,cgst_rate,cgst_amt,sgst_rate,sgst_amt,igst_rate,igst_amt) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        args:[actualId,it.sr_no,it.description,it.hsn_sac,it.qty,it.unit,it.rate,it.taxable_value,it.cgst_rate,it.cgst_amt,it.sgst_rate,it.sgst_amt,it.igst_rate,it.igst_amt]};
+    });
+    liStmts.push({sql:'INSERT INTO audit_log(ts,action,entity,entity_id,detail) VALUES(?,?,?,?,?)',
+      args:[ts, invId?'UPDATE':'CREATE', 'invoice', actualId, no]});
+    if (liStmts.length) await turso(liStmts);
+
+    qi('edit-id').value = actualId;
+    qi('inv-title').textContent = 'Edit: ' + no;
+    toast(invId ? 'Invoice updated!' : 'Invoice created!');
     showExportPrompt(actualId, items, no, dt, cl, qi('f-cgstin').value, qi('f-caddr').value, qi('f-notes').value, status);
-  } catch(e) { toast(e.message,'error'); }
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 function showExportPrompt(id, items, invNo, invDate, clientName, clientGstin, clientAddr, notes, status) {
@@ -910,19 +967,28 @@ async function saveTursoConfig() {
   var url = qi('t-url').value.trim().replace(/\/$/, '');
   var token = qi('t-token').value.trim();
   if(!url||!token){toast('Enter both URL and Token','error');return;}
+  // Normalise URL: libsql:// → https://
+  if (url.startsWith('libsql://')) url = url.replace('libsql://', 'https://');
+  if (!url.startsWith('https://')) { toast('URL must start with https://', 'error'); return; }
   // Test connection
   qi('turso-test-result').textContent = '⏳ Testing…';
   try {
-    var res = await fetch(url+'/health', {headers:{'Authorization':'Bearer '+token}});
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    var healthRes = await fetch(url+'/health', {headers:{'Authorization':'Bearer '+token}});
+    if (healthRes.status === 401) throw new Error('Invalid token (401)');
+    if (healthRes.status === 404) throw new Error('Database not found (404) — check URL');
+    if (!healthRes.ok) throw new Error('HTTP '+healthRes.status);
     localStorage.setItem('turso_url', url);
     localStorage.setItem('turso_token', token);
+    // Update the live config too so page works immediately without reload
+    window.TURSO_URL = url; window.TURSO_TOKEN = token;
+    qi('t-url').value = url; // Show normalised URL
     qi('turso-test-result').textContent = '✅ Connected!';
     qi('cfg-error').classList.remove('show');
     toast('Turso connected and saved!');
   } catch(e) {
-    qi('turso-test-result').textContent = '❌ Failed: '+e.message;
-    toast('Connection failed: '+e.message, 'error');
+    var msg = e.name === 'TypeError' ? 'CORS error — check URL is correct https:// address' : e.message;
+    qi('turso-test-result').textContent = '❌ ' + msg;
+    toast('Connection failed: ' + msg, 'error');
   }
 }
 

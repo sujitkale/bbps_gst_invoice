@@ -811,90 +811,148 @@ function buildPDF(inv, items, cfg) {
   var { jsPDF } = window.jspdf;
   var doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   var W = 190, margin = 10, y = 10;
-  var navy=[15,23,42], saffron=[255,107,0], green=[10,138,74], hdrBlue=[189,215,238], greenBg=[226,239,218];
+  var navy=[15,23,42], hdrBlue=[189,215,238], greenBg=[226,239,218], lightBlue=[233,239,247];
 
-  // Header
-  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,8,'F');
-  doc.setTextColor.apply(doc,navy); doc.setFontSize(14); doc.setFont('helvetica','bold');
-  doc.text('TAX INVOICE', 105, y+5.5, {align:'center'}); y+=9;
-  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,6,'F');
-  doc.setFontSize(10); doc.text(cfg.company_name||'', 105, y+4.2, {align:'center'}); y+=7;
-  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,5,'F');
+  // Rs. prefix avoids rupee-symbol glyph bug in jsPDF built-in Helvetica
+  // (the font lacks Unicode U+20B9, renders as superscript-1 / apostrophe)
+  function rs(n)    { return 'Rs.' + n2s(parseFloat(n||0)); }
+  function rsFmt(n) { return 'Rs.' + fmt(Math.round(n||0)); }
+
+  // HEADER
+  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,9,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(navy[0],navy[1],navy[2]);
+  doc.text('TAX INVOICE', margin+W/2, y+6.2, {align:'center'}); y+=10;
+
+  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,7,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,0,0);
+  doc.text(cfg.company_name||'', margin+W/2, y+5, {align:'center'}); y+=8;
+
+  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,5.5,'F');
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-  doc.text('GSTIN: '+(cfg.gstin||'')+'  |  Ph: '+(cfg.contact||'')+'  |  '+(cfg.email||''), 105, y+3.5, {align:'center'}); y+=5.5;
-  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,5,'F');
-  doc.text(cfg.address||'', 105, y+3.5, {align:'center'}); y+=7;
+  doc.text('GSTIN: '+(cfg.gstin||'')+'   Ph: '+(cfg.contact||'')+'   '+(cfg.email||''), margin+W/2, y+3.8, {align:'center'}); y+=6;
 
-  // Meta
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(0,0,0);
-  doc.text('Invoice No:', margin, y+4); doc.setFont('helvetica','normal'); doc.text(inv.invoice_no||'', margin+22, y+4);
-  doc.setFont('helvetica','bold'); doc.text('Date:', 130, y+4); doc.setFont('helvetica','normal'); doc.text(inv.invoice_date||'', 143, y+4);
-  y+=6;
-  doc.setFont('helvetica','bold'); doc.text('PO No:', margin, y+4); doc.setFont('helvetica','normal'); doc.text(inv.po_no||'', margin+22, y+4);
-  doc.setFont('helvetica','bold'); doc.text('Status:', 130, y+4); doc.setFont('helvetica','normal'); doc.text((inv.status||'').toUpperCase(), 143, y+4);
-  y+=8;
+  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,5.5,'F');
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  doc.text(cfg.address||'', margin+W/2, y+3.8, {align:'center'}); y+=7;
 
-  // Bill To
-  doc.setFillColor(233,239,247); doc.rect(margin,y,W,5,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor.apply(doc,navy);
-  doc.text('BILL TO', margin+2, y+3.5); y+=5;
+  // INVOICE META
+  doc.setDrawColor(220,220,220); doc.setLineWidth(0.2);
+  doc.rect(margin,y,W,12,'S');
+  doc.line(margin+W/2,y, margin+W/2,y+12);
+  doc.line(margin,y+6, margin+W,y+6);
+  var pairs=[['Invoice No :', inv.invoice_no||'', 'Date :', inv.invoice_date||''],
+             ['PO No :',     inv.po_no||'',       'Status :', (inv.status||'').toUpperCase()]];
+  pairs.forEach(function(p,row) {
+    var yy=y+4.5+row*6;
+    doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.text(p[0], margin+2, yy); doc.text(p[2], margin+W/2+2, yy);
+    doc.setFont('helvetica','normal');
+    doc.text(p[1], margin+27, yy); doc.text(p[3], margin+W/2+20, yy);
+  });
+  y+=14;
+
+  // BILL TO
+  doc.setFillColor(lightBlue[0],lightBlue[1],lightBlue[2]); doc.rect(margin,y,W,5.5,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(navy[0],navy[1],navy[2]);
+  doc.text('BILL TO', margin+2, y+3.9); y+=6;
   doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(0,0,0);
-  doc.text(inv.client_name||'', margin+2, y+4); y+=5;
+  doc.text(inv.client_name||'', margin+2, y+3.5); y+=5;
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-  if(inv.client_address) { doc.text(inv.client_address.substring(0,90), margin+2, y+3.5); y+=4.5; }
-  doc.text('GSTIN: '+(inv.client_gstin||''), margin+2, y+3.5); y+=7;
-
-  // Line items table
-  var supply = inv.supply_type||'intra';
-  var head, cols;
-  if(supply==='intra') {
-    head=[['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable Val','CGST%','CGST Amt','SGST%','SGST Amt','Total']];
-    cols=['sr_no','description','hsn_sac','qty','unit','rate','taxable_value','cgst_rate','cgst_amt','sgst_rate','sgst_amt','_total'];
-  } else {
-    head=[['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable Val','IGST%','IGST Amt','Total']];
-    cols=['sr_no','description','hsn_sac','qty','unit','rate','taxable_value','igst_rate','igst_amt','_total'];
+  if (inv.client_address) {
+    doc.splitTextToSize(inv.client_address, W-4).slice(0,2).forEach(function(line){ doc.text(line,margin+2,y+3); y+=4; });
   }
+  doc.text('GSTIN: '+(inv.client_gstin||'—'), margin+2, y+3); y+=7;
+
+  // LINE ITEMS TABLE
+  var supply=inv.supply_type||'intra';
   var tv_tot=0,cg_tot=0,sg_tot=0,ig_tot=0;
-  var body = items.map(function(it){
+  var body=items.map(function(it){
     var tv=parseFloat(it.taxable_value||0),ca=parseFloat(it.cgst_amt||0),sa=parseFloat(it.sgst_amt||0),ia=parseFloat(it.igst_amt||0);
     var lt=tv+ca+sa+ia; tv_tot+=tv;cg_tot+=ca;sg_tot+=sa;ig_tot+=ia;
-    it._total=lt;
-    return cols.map(function(col){
-      var v=it[col];
-      if(['rate','taxable_value','cgst_amt','sgst_amt','igst_amt','_total'].indexOf(col)>=0) return '₹'+n2s(parseFloat(v||0));
-      if(['cgst_rate','sgst_rate','igst_rate'].indexOf(col)>=0) return (v||0)+'%';
-      if(['qty'].indexOf(col)>=0) return parseFloat(v||0).toFixed(2);
-      return v||'';
-    });
+    return supply==='intra'
+      ? [String(it.sr_no),it.description||'',it.hsn_sac||'',n2s(parseFloat(it.qty||0)),it.unit||'',rs(it.rate),rs(tv),(it.cgst_rate||0)+'%',rs(ca),(it.sgst_rate||0)+'%',rs(sa),rs(lt)]
+      : [String(it.sr_no),it.description||'',it.hsn_sac||'',n2s(parseFloat(it.qty||0)),it.unit||'',rs(it.rate),rs(tv),(it.igst_rate||0)+'%',rs(ia),rs(lt)];
   });
   var grand=tv_tot+cg_tot+sg_tot+ig_tot, rounded=Math.round(grand), roff=rounded-grand;
+  // Totals row appended to body (same table, green bg)
+  if(supply==='intra') body.push(['','TOTAL','','','','',rs(tv_tot),'',rs(cg_tot),'',rs(sg_tot),rs(grand)]);
+  else                 body.push(['','TOTAL','','','','',rs(tv_tot),'',rs(ig_tot),rs(grand)]);
+  var lastRow=body.length-1;
 
-  doc.autoTable({head:head, body:body, startY:y, margin:{left:margin,right:margin},
-    styles:{fontSize:7,cellPadding:2}, headStyles:{fillColor:navy,textColor:[255,255,255],fontStyle:'bold'},
+  // Column widths add up exactly to W=190
+  // intra (12 cols): 6+36+10+9+8+16+20+8+16+8+16+17 = 190
+  // inter (10 cols): 6+40+12+10+8+18+24+8+24+20     = 170 → tableWidth handles remainder
+  var colStyles = supply==='intra' ? {
+    0:{cellWidth:6,halign:'center'},  1:{cellWidth:36,halign:'left'},
+    2:{cellWidth:10,halign:'center'}, 3:{cellWidth:9,halign:'right'},
+    4:{cellWidth:8,halign:'center'},  5:{cellWidth:16,halign:'right'},
+    6:{cellWidth:20,halign:'right'},  7:{cellWidth:8,halign:'center'},
+    8:{cellWidth:16,halign:'right'},  9:{cellWidth:8,halign:'center'},
+    10:{cellWidth:16,halign:'right'}, 11:{cellWidth:17,halign:'right'}
+  } : {
+    0:{cellWidth:6,halign:'center'},  1:{cellWidth:40,halign:'left'},
+    2:{cellWidth:12,halign:'center'}, 3:{cellWidth:10,halign:'right'},
+    4:{cellWidth:8,halign:'center'},  5:{cellWidth:20,halign:'right'},
+    6:{cellWidth:26,halign:'right'},  7:{cellWidth:8,halign:'center'},
+    8:{cellWidth:24,halign:'right'},  9:{cellWidth:20,halign:'right'}
+  };
+  var head=supply==='intra'
+    ? [['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable Value','CGST%','CGST Amt','SGST%','SGST Amt','Total']]
+    : [['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable Value','IGST%','IGST Amt','Total']];
+
+  doc.autoTable({head:head, body:body, startY:y, margin:{left:margin,right:margin}, tableWidth:W,
+    styles:{fontSize:7.5, cellPadding:{top:2,right:2,bottom:2,left:2}, overflow:'linebreak'},
+    headStyles:{fillColor:navy, textColor:[255,255,255], fontStyle:'bold', fontSize:7.5, halign:'center'},
     alternateRowStyles:{fillColor:[247,251,255]},
-    columnStyles:{0:{cellWidth:8},1:{cellWidth:40}}
+    columnStyles:colStyles,
+    didParseCell:function(data){
+      if(data.section==='body'&&data.row.index===lastRow){
+        data.cell.styles.fillColor=greenBg; data.cell.styles.fontStyle='bold';
+      }
+    }
   });
-  y = doc.lastAutoTable.finalY + 3;
+  y=doc.lastAutoTable.finalY+2;
 
-  // Totals summary
-  var sumRows=[['Round Off', (roff>=0?'+':'')+n2s(roff)],['TOTAL INVOICE VALUE','₹'+fmt(rounded)],['Amount in Words',numWords(rounded)+' Only']];
-  doc.autoTable({body:sumRows, startY:y, margin:{left:margin+60,right:margin},
-    styles:{fontSize:8,cellPadding:3},
-    bodyStyles:{}, columnStyles:{0:{fontStyle:'bold',cellWidth:50},1:{cellWidth:80}},
-    didParseCell:function(data){if(data.row.index===1){data.cell.styles.fillColor=greenBg;data.cell.styles.fontStyle='bold';}}
+  // SUMMARY TABLE — right-aligned block, 130mm wide
+  var sumX=margin+W-130;
+  doc.autoTable({
+    body:[['Round Off',(roff>=0?'+':'')+n2s(roff)],['TOTAL INVOICE VALUE',rsFmt(rounded)],['Amount in Words',numWords(rounded)+' Only']],
+    startY:y, margin:{left:sumX,right:margin}, tableWidth:130,
+    styles:{fontSize:8, cellPadding:3},
+    columnStyles:{0:{cellWidth:52,fontStyle:'bold',halign:'left'},1:{cellWidth:78,halign:'right'}},
+    didParseCell:function(data){
+      if(data.row.index===1){data.cell.styles.fillColor=greenBg;data.cell.styles.fontStyle='bold';data.cell.styles.fontSize=9;}
+    }
   });
-  y = doc.lastAutoTable.finalY + 4;
+  y=doc.lastAutoTable.finalY+4;
 
-  // Bank + signature
-  doc.setFontSize(7.5); doc.setTextColor(0,0,0); doc.setFont('helvetica','bold');
-  doc.text('Bank: ', margin, y+3); doc.setFont('helvetica','normal');
-  doc.text((cfg.bank_name||'')+' | A/C: '+(cfg.account_no||'')+' | IFSC: '+(cfg.ifsc||''), margin+10, y+3); y+=5;
-  doc.setFont('helvetica','bold'); doc.text('Branch: ', margin, y+3); doc.setFont('helvetica','normal');
-  doc.text((cfg.branch||'')+' | '+( cfg.account_type||''), margin+13, y+3); y+=7;
-  doc.setFont('helvetica','bold'); doc.setFontSize(8);
-  doc.text('For '+(cfg.company_name||''), 150, y+3); y+=12;
-  doc.text((cfg.signatory_name||''), 150, y+3); y+=4;
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.text(cfg.signatory_title||'', 150, y+3);
+  // BANK + SIGNATURE — proper table, side by side
+  doc.autoTable({
+    body:[
+      ['Bank',       cfg.bank_name||'—',    'For '+(cfg.company_name||''), ''],
+      ['Account No', cfg.account_no||'—',   '', ''],
+      ['IFSC',       cfg.ifsc||'—',         '', ''],
+      ['Branch',     (cfg.branch||'—')+'  '+cfg.account_type||'', cfg.signatory_name||'', ''],
+      ['Beneficiary',cfg.beneficiary_name||cfg.signatory_name||'—', cfg.signatory_title||'', '']
+    ],
+    startY:y, margin:{left:margin,right:margin}, tableWidth:W,
+    styles:{fontSize:7.5, cellPadding:3},
+    columnStyles:{
+      0:{cellWidth:25,fontStyle:'bold',halign:'left'},
+      1:{cellWidth:85,halign:'left'},
+      2:{cellWidth:45,halign:'center',fontStyle:'bold'},
+      3:{cellWidth:35,halign:'center'}
+    },
+    didParseCell:function(data){
+      if(data.column.index>=2) data.cell.styles.fillColor=[245,248,252];
+      if(data.row.index===0&&data.column.index===2) data.cell.styles.fontStyle='normal';
+      if(data.row.index===3&&data.column.index===2) { data.cell.styles.fontStyle='bold'; }
+      if(data.row.index===4&&data.column.index===2) {
+        data.cell.styles.fontStyle='normal';
+        data.cell.styles.textColor=[100,100,100];
+      }
+    }
+  });
 
   doc.save('Invoice_'+(inv.invoice_no||'').replace(/\//g,'_')+'.pdf');
   toast('PDF downloaded!');

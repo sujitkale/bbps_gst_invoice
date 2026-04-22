@@ -1,0 +1,4 @@
+eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzY2NDg1MjQsImlkIjoiMDE5ZGE4ODAtOTUwMS03NzRjLTliMjUtOTFhMjIyNWQ5YWU0IiwicmlkIjoiOWY4ZmQyMjEtOTMyMS00MWQ1LTllZDUtMGRhNTBmYmMyYWQ0In0.CKAWk2cKoTWK58Ug2gzLYtOl7hzXClmJy6yWI7YOnApzHrMV_a62MRfsASom_zdiOaqtCYlPPvGhSxK7Dh63Aw
+
+libsql://bbpsgsttest-sujitkale.aws-ap-south-1.turso.io
+https://bbpsgsttest-sujitkale.aws-ap-south-1.turso.io

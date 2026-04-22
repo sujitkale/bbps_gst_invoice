@@ -952,13 +952,7 @@ function buildPDF(inv, items, cfg) {
   // Inter 10 cols: 6+44+12+10+8+19+27+9+27+18=180 (tableWidth=W covers)
   var HEAD, CS;
   if(sup==='intra'){
-    HEAD=[['Sr','Description','HSN/
-SAC','Qty','Unit','Rate','Taxable
-Value','CGST
-%','CGST
-Amt','SGST
-%','SGST
-Amt','Total']];
+    HEAD=[['Sr','Description','HSNSAC','Qty','Unit','Rate','TaxableValue','CGST%','CGSTAmt','SGST%','SGSTAmt','Total']];
     CS={0:{cellWidth:6,halign:'center'},1:{cellWidth:34,halign:'left'},
         2:{cellWidth:10,halign:'center'},3:{cellWidth:10,halign:'right'},
         4:{cellWidth:8,halign:'center'},5:{cellWidth:17,halign:'right'},
@@ -966,11 +960,7 @@ Amt','Total']];
         8:{cellWidth:17,halign:'right'},9:{cellWidth:8,halign:'center'},
         10:{cellWidth:17,halign:'right'},11:{cellWidth:13,halign:'right'}};
   } else {
-    HEAD=[['Sr','Description','HSN/
-SAC','Qty','Unit','Rate','Taxable
-Value','IGST
-%','IGST
-Amt','Total']];
+    HEAD=[['Sr','Description','HSNSAC','Qty','Unit','Rate','TaxableValue','IGST%','IGST Amt','Total']];
     CS={0:{cellWidth:6,halign:'center'},1:{cellWidth:44,halign:'left'},
         2:{cellWidth:12,halign:'center'},3:{cellWidth:10,halign:'right'},
         4:{cellWidth:8,halign:'center'},5:{cellWidth:19,halign:'right'},

@@ -115,6 +115,9 @@ tr:last-child td{border-bottom:none}
 /* config error banner */
 .cfg-error{background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:16px;margin-bottom:16px;font-size:.85rem;color:#7F1D1D;display:none}
 .cfg-error.show{display:block}
+.fy-btn{padding:5px 13px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-family:var(--font);font-size:.75rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;-webkit-tap-highlight-color:transparent}
+.fy-btn:hover{border-color:var(--saffron);color:var(--saffron)}
+.fy-btn.active{background:var(--saffron);color:#fff;border-color:var(--saffron)}
 @media(max-width:768px){.top-tabs{display:none}.bot-nav{display:block}.toast{bottom:calc(var(--bot-h)+10px);left:16px;right:16px;max-width:none}.dash-grid{grid-template-columns:1fr!important}.inv-bottom{grid-template-columns:1fr!important}.data-grid{grid-template-columns:1fr!important}.sgrid{grid-template-columns:1fr 1fr}.cb{padding:14px}.ch{padding:14px 14px 10px}}
 @media(max-width:480px){.sgrid{grid-template-columns:1fr}.brand-chip{display:none}}
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}
@@ -152,6 +155,11 @@ tr:last-child td{border-bottom:none}
 <div class="page active" id="page-dashboard">
   <div id="cfg-error" class="cfg-error">
     ⚠️ <strong>Turso not configured.</strong> Go to Settings → enter your Turso URL and Token → Save. Or open <code>index.html</code> and set <code>TURSO_URL</code> and <code>TURSO_TOKEN</code> at the top.
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    <span style="font-size:.8rem;font-weight:700;color:var(--slate)">Financial Year:</span>
+    <div style="display:flex;gap:6px;flex-wrap:wrap" id="fy-tabs"></div>
+    <span style="font-size:.75rem;color:var(--muted)" id="fy-label"></span>
   </div>
   <div class="sgrid" id="sgrid">
     <div class="sc" style="height:80px;background:linear-gradient(90deg,#F1F5F9 25%,#E2E8F0 50%,#F1F5F9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite"></div>
@@ -426,14 +434,14 @@ function lastInsertId(result) {
 // ════════════════════════════════════════════════════════════════════
 var allInvoices = [], supply = 'intra', liCount = 0;
 
-function go(id) {
+function go(id, skipInit) {
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + id).classList.add('active');
   document.querySelectorAll('.ttab,.btab').forEach(function(t) { t.classList.toggle('active', t.dataset.page === id); });
   window.scrollTo(0, 0);
   if (id === 'dashboard')  loadDashboard();
   if (id === 'invoices')   loadInvoices();
-  if (id === 'new-invoice') initForm();
+  if (id === 'new-invoice' && !skipInit) initForm();
   if (id === 'config')     loadConfig();
   if (id === 'data')       loadAudit();
 }
@@ -516,52 +524,113 @@ function calcTotals(items) {
 // ════════════════════════════════════════════════════════════════════
 //  DASHBOARD
 // ════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
+//  INDIAN FINANCIAL YEAR HELPERS
+// ════════════════════════════════════════════════════════════════════
+function getFY(d) {
+  if (!d) return null;
+  var p=String(d).split('-'), yr=parseInt(p[0]), mo=parseInt(p[1]);
+  return mo>=4 ? yr+'-'+String(yr+1).slice(-2) : (yr-1)+'-'+String(yr).slice(-2);
+}
+function currentFY() {
+  var d=new Date(), yr=d.getFullYear(), mo=d.getMonth()+1;
+  return mo>=4 ? yr+'-'+String(yr+1).slice(-2) : (yr-1)+'-'+String(yr).slice(-2);
+}
+function fyRange(fy) {
+  var sy=parseInt(fy.split('-')[0]);
+  return {start:sy+'-04-01', end:(sy+1)+'-03-31'};
+}
+var _fy = currentFY();
+
+function buildFYTabs(invs) {
+  var seen={};
+  invs.forEach(function(inv){ var f=getFY(inv.invoice_date); if(f) seen[f]=true; });
+  var fys=Object.keys(seen).sort().reverse();
+  if (!seen[currentFY()]) fys.unshift(currentFY());
+  var c=qi('fy-tabs'); c.innerHTML='';
+  function mkBtn(label, fy) {
+    var b=document.createElement('button');
+    b.className='fy-btn'+((_fy===fy||(fy===null&&_fy===null))?' active':'');
+    b.textContent=label; if(fy) b.dataset.fy=fy;
+    b.onclick=function(){ _fy=fy; renderDash(qi._all); };
+    c.appendChild(b);
+  }
+  mkBtn('All Time', null);
+  fys.forEach(function(f){ mkBtn('FY '+f, f); });
+}
+
+function renderDash(all) {
+  document.querySelectorAll('.fy-btn').forEach(function(b){
+    b.classList.toggle('active',
+      (b.dataset.fy&&b.dataset.fy===_fy)||(!b.dataset.fy&&_fy===null));
+  });
+  var invs=_fy?all.filter(function(inv){return getFY(inv.invoice_date)===_fy;}):all;
+  var r=_fy?fyRange(_fy):null;
+  qi('fy-label').textContent=_fy
+    ?('1 Apr '+(_fy.split('-')[0])+' – 31 Mar '+(parseInt(_fy.split('-')[0])+1)+'  ('+invs.length+' invoice'+(invs.length!==1?'s':'')+')')
+    :('All time  ('+invs.length+' invoice'+(invs.length!==1?'s':'')+')');
+
+  var totVal=0,totTax=0,totGST=0;
+  invs.forEach(function(inv){
+    totVal +=(inv._totals.total||0);
+    totTax +=(inv._totals.total_taxable||0);
+    totGST +=(inv._totals.total_cgst||0)+(inv._totals.total_sgst||0)+(inv._totals.total_igst||0);
+  });
+  qi('sgrid').innerHTML=
+    '<div class="sc ac"><div class="sc-lbl">Invoices</div><div class="sc-val">'+invs.length+'</div><div class="sc-sub">'+(_fy?'FY '+_fy:'All time')+'</div></div>'+
+    '<div class="sc gc"><div class="sc-lbl">Revenue</div><div class="sc-val">&#8377;'+fmt(totVal)+'</div><div class="sc-sub">Incl. GST</div></div>'+
+    '<div class="sc"><div class="sc-lbl">Taxable</div><div class="sc-val">&#8377;'+fmt(totTax)+'</div><div class="sc-sub">Pre-GST</div></div>'+
+    '<div class="sc"><div class="sc-lbl">Total GST</div><div class="sc-val">&#8377;'+fmt(totGST)+'</div><div class="sc-sub">CGST+SGST+IGST</div></div>';
+
+  var mo={};
+  invs.forEach(function(inv){
+    var m=(inv.invoice_date||'').substring(0,7)||'?';
+    mo[m]=(mo[m]||0)+(inv._totals.total||0);
+  });
+  var mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var months=Object.keys(mo).sort(function(a,b){
+    var ap=a.split('-'),bp=b.split('-');
+    return (parseInt(ap[0])*12+parseInt(ap[1]))-(parseInt(bp[0])*12+parseInt(bp[1]));
+  });
+  var vals=months.map(function(m){return mo[m]||0;}), mx=Math.max.apply(null,vals.concat([1]));
+  qi('chart-bars').innerHTML=months.length
+    ?months.map(function(m,i){
+        var h=Math.max(3,Math.round((vals[i]/mx)*96));
+        var p=m.split('-'), lbl=mn[parseInt(p[1])-1]+"'"+p[0].slice(-2);
+        return '<div class="bg"><div class="bv">'+(vals[i]>0?'&#8377;'+fmtS(vals[i]):'')+'</div><div class="bar" style="height:'+h+'px"></div><div class="bl">'+lbl+'</div></div>';
+      }).join('')
+    :'<div style="margin:auto;color:var(--muted);font-size:.8rem">No invoices in this period</div>';
+
+  var cli={};
+  invs.forEach(function(inv){var n=inv.client_name||'?';cli[n]=(cli[n]||0)+(inv._totals.total||0);});
+  var tc=Object.keys(cli).map(function(n){return{name:n,t:cli[n]};}).sort(function(a,b){return b.t-a.t;}).slice(0,5);
+  qi('top-clients').innerHTML=tc.length
+    ?tc.map(function(c){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)"><div style="font-size:.81rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58%">'+esc(c.name)+'</div><div style="font-family:var(--mono);font-size:.76rem;color:var(--saffron);font-weight:700">&#8377;'+fmt(c.t)+'</div></div>';}).join('')
+    :'<div style="color:var(--muted);font-size:.8rem">No clients in this period</div>';
+
+  var rec=invs.slice(0,5);
+  qi('recent-table').innerHTML=rec.length
+    ?'<table><thead><tr><th>Invoice No</th><th>Date</th><th>Client</th><th>Total</th><th>Status</th></tr></thead><tbody>'+
+      rec.map(function(inv){return '<tr><td class="mono">'+esc(inv.invoice_no)+'</td><td>'+esc(inv.invoice_date||'')+'</td><td>'+esc(inv.client_name||'')+'</td><td class="mono">&#8377;'+fmt(inv._totals.total)+'</td><td><span class="badge badge-'+esc(inv.status)+'">'+esc(inv.status)+'</span></td></tr>';}).join('')+'</tbody></table>'
+    :'<div class="empty"><div class="em">&#128235;</div><p>No invoices in this period</p></div>';
+}
+
 async function loadDashboard() {
-  qi('cfg-error').classList.toggle('show', !isConfigured());
-  if (!isConfigured()) { qi('sgrid').innerHTML = '<div class="sc ac"><div class="sc-lbl">Status</div><div class="sc-val" style="font-size:1rem">Not configured</div></div><div class="sc"></div><div class="sc"></div><div class="sc"></div>'; return; }
+  qi('cfg-error').classList.toggle('show',!isConfigured());
+  if (!isConfigured()){
+    qi('sgrid').innerHTML='<div class="sc ac"><div class="sc-lbl">Status</div><div class="sc-val" style="font-size:1rem">Not configured</div></div><div class="sc"></div><div class="sc"></div><div class="sc"></div>';
+    return;
+  }
   try {
-    var res = await turso({ sql: 'SELECT * FROM invoices ORDER BY id DESC', args: [] });
-    allInvoices = rows(res[0]);
-    var ids = allInvoices.map(function(inv) { return parseInt(inv.id); });
-    var itemMap = await fetchLineItems(ids);
-    allInvoices.forEach(function(inv) { inv._items = itemMap[parseInt(inv.id)] || []; inv._totals = calcTotals(inv._items); });
-
-    var totalValue = allInvoices.reduce(function(s,inv) { return s + (inv._totals.total||0); }, 0);
-    var totalTaxable = allInvoices.reduce(function(s,inv) { return s + (inv._totals.total_taxable||0); }, 0);
-    var totalGST = allInvoices.reduce(function(s,inv) { return s + (inv._totals.total_cgst||0) + (inv._totals.total_sgst||0) + (inv._totals.total_igst||0); }, 0);
-
-    qi('sgrid').innerHTML =
-      '<div class="sc ac"><div class="sc-lbl">Total Invoices</div><div class="sc-val">'+allInvoices.length+'</div><div class="sc-sub">All time</div></div>'+
-      '<div class="sc gc"><div class="sc-lbl">Total Revenue</div><div class="sc-val">₹'+fmt(totalValue)+'</div><div class="sc-sub">Incl. GST</div></div>'+
-      '<div class="sc"><div class="sc-lbl">Taxable Value</div><div class="sc-val">₹'+fmt(totalTaxable)+'</div><div class="sc-sub">Pre-GST</div></div>'+
-      '<div class="sc"><div class="sc-lbl">Total GST</div><div class="sc-val">₹'+fmt(totalGST)+'</div><div class="sc-sub">CGST+SGST+IGST</div></div>';
-
-    // Monthly chart
-    var mo = {};
-    allInvoices.forEach(function(inv) { var m=(inv.invoice_date||'').substring(0,7)||'Unknown'; mo[m]=(mo[m]||0)+(inv._totals.total||0); });
-    var months = Object.keys(mo).sort().slice(-6);
-    var vals = months.map(function(m){return mo[m]||0;});
-    var mx = Math.max.apply(null, vals.concat([1]));
-    qi('chart-bars').innerHTML = months.length ? months.map(function(m,i){
-      var h=Math.max(3,Math.round((vals[i]/mx)*96));
-      return '<div class="bg"><div class="bv">'+(vals[i]>0?'₹'+fmtS(vals[i]):'')+'</div><div class="bar" style="height:'+h+'px"></div><div class="bl">'+m+'</div></div>';
-    }).join('') : '<div style="margin:auto;color:var(--muted);font-size:.8rem">No data yet</div>';
-
-    // Top clients
-    var clients = {};
-    allInvoices.forEach(function(inv) { var n=inv.client_name||'Unknown'; clients[n]=(clients[n]||0)+(inv._totals.total||0); });
-    var tc = Object.keys(clients).map(function(n){return{name:n,total:clients[n]};}).sort(function(a,b){return b.total-a.total;}).slice(0,5);
-    qi('top-clients').innerHTML = tc.length ? tc.map(function(c){
-      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)"><div style="font-size:.81rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58%">'+esc(c.name)+'</div><div style="font-family:var(--mono);font-size:.76rem;color:var(--saffron);font-weight:700">₹'+fmt(c.total)+'</div></div>';
-    }).join('') : '<div style="color:var(--muted);font-size:.8rem">No clients yet</div>';
-
-    // Recent
-    var recent = allInvoices.slice(0,5);
-    qi('recent-table').innerHTML = recent.length ?
-      '<table><thead><tr><th>Invoice No</th><th>Date</th><th>Client</th><th>Total</th><th>Status</th></tr></thead><tbody>'+
-      recent.map(function(inv){return '<tr><td class="mono">'+esc(inv.invoice_no)+'</td><td>'+esc(inv.invoice_date||'')+'</td><td>'+esc(inv.client_name||'')+'</td><td class="mono">₹'+fmt(inv._totals.total)+'</td><td><span class="badge badge-'+esc(inv.status)+'">'+esc(inv.status)+'</span></td></tr>';}).join('')+
-      '</tbody></table>' : '<div class="empty"><div class="em">📭</div><p>No invoices yet</p></div>';
-  } catch(e) { toast(e.message, 'error'); }
+    var res=await turso({sql:'SELECT * FROM invoices ORDER BY invoice_date DESC, id DESC',args:[]});
+    allInvoices=rows(res[0]);
+    var ids=allInvoices.map(function(inv){return parseInt(inv.id);});
+    var itemMap=await fetchLineItems(ids);
+    allInvoices.forEach(function(inv){inv._items=itemMap[parseInt(inv.id)]||[];inv._totals=calcTotals(inv._items);});
+    qi._all=allInvoices;
+    buildFYTabs(allInvoices);
+    renderDash(allInvoices);
+  } catch(e){toast(e.message,'error');}
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -618,7 +687,8 @@ async function initForm() {
 }
 
 async function editInvoice(id) {
-  go('new-invoice');
+  go('new-invoice', true); // skipInit prevents initForm() clearing edit-id
+  qi('edit-id').value = ''; qi('inv-title').textContent = 'Loading…'; liCount=0; qi('li-body').innerHTML='';
   try {
     var res = await turso([
       { sql: 'SELECT * FROM invoices WHERE id=?', args:[id] },
@@ -626,7 +696,7 @@ async function editInvoice(id) {
     ]);
     var inv = rows(res[0])[0]; if(!inv) return;
     var items = rows(res[1]);
-    qi('inv-title').textContent='Edit: '+inv.invoice_no; qi('edit-id').value=id;
+    qi('inv-title').textContent='Edit: '+inv.invoice_no; qi('edit-id').value = String(id);
     qi('f-no').value=inv.invoice_no||''; qi('f-date').value=inv.invoice_date||'';
     qi('f-po').value=inv.po_no||''; qi('f-client').value=inv.client_name||'';
     qi('f-cgstin').value=inv.client_gstin||''; qi('f-caddr').value=inv.client_address||''; qi('f-notes').value=inv.notes||'';
@@ -808,154 +878,184 @@ async function exportPDFData(id){ exportPDF(id); }
 async function exportExcelData(id){ exportExcel(id); }
 
 function buildPDF(inv, items, cfg) {
-  var { jsPDF } = window.jspdf;
-  var doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-  var W = 190, margin = 10, y = 10;
-  var navy=[15,23,42], hdrBlue=[189,215,238], greenBg=[226,239,218], lightBlue=[233,239,247];
+  var {jsPDF}=window.jspdf;
+  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  var W=190, M=10, y=10;
+  var NAVY=[15,23,42], HBLUE=[189,215,238], GBKG=[226,239,218], LBLUE=[233,239,247];
 
-  // Rs. prefix avoids rupee-symbol glyph bug in jsPDF built-in Helvetica
-  // (the font lacks Unicode U+20B9, renders as superscript-1 / apostrophe)
-  function rs(n)    { return 'Rs.' + n2s(parseFloat(n||0)); }
-  function rsFmt(n) { return 'Rs.' + fmt(Math.round(n||0)); }
+  // Use Rs. — jsPDF Helvetica lacks the Rs glyph (U+20B9) → renders as superscript 1
+  function rs(n){ n=parseFloat(n||0); return 'Rs.'+( n%1===0 ? fmt(n) : n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})); }
+  function rsFmt(n){ return 'Rs.'+fmt(Math.round(n||0)); }
+  function pct(n){ return parseFloat(n||0)+'%'; }
 
-  // HEADER
-  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,9,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(navy[0],navy[1],navy[2]);
-  doc.text('TAX INVOICE', margin+W/2, y+6.2, {align:'center'}); y+=10;
+  // ── HEADER ──────────────────────────────────────────────────────────────
+  [[9,'TAX INVOICE',15,true,NAVY],[7,cfg.company_name||'',10,true,[0,0,0]],
+   [5.5,'GSTIN: '+(cfg.gstin||'')+'   Ph: '+(cfg.contact||'')+'   '+(cfg.email||''),7.5,false,[0,0,0]],
+   [5.5,cfg.address||'',7.5,false,[0,0,0]]
+  ].forEach(function(row){
+    doc.setFillColor(HBLUE[0],HBLUE[1],HBLUE[2]); doc.rect(M,y,W,row[0],'F');
+    doc.setFont('helvetica',row[3]?'bold':'normal'); doc.setFontSize(row[2]);
+    doc.setTextColor(row[4][0],row[4][1],row[4][2]);
+    var txt=doc.splitTextToSize(row[1],W-4);
+    doc.text(txt[0]||'', M+W/2, y+row[0]*0.67, {align:'center'});
+    y+=row[0]+1;
+  });
+  y+=2;
 
-  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,7,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,0,0);
-  doc.text(cfg.company_name||'', margin+W/2, y+5, {align:'center'}); y+=8;
-
-  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,5.5,'F');
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-  doc.text('GSTIN: '+(cfg.gstin||'')+'   Ph: '+(cfg.contact||'')+'   '+(cfg.email||''), margin+W/2, y+3.8, {align:'center'}); y+=6;
-
-  doc.setFillColor.apply(doc,hdrBlue); doc.rect(margin,y,W,5.5,'F');
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-  doc.text(cfg.address||'', margin+W/2, y+3.8, {align:'center'}); y+=7;
-
-  // INVOICE META
-  doc.setDrawColor(220,220,220); doc.setLineWidth(0.2);
-  doc.rect(margin,y,W,12,'S');
-  doc.line(margin+W/2,y, margin+W/2,y+12);
-  doc.line(margin,y+6, margin+W,y+6);
-  var pairs=[['Invoice No :', inv.invoice_no||'', 'Date :', inv.invoice_date||''],
-             ['PO No :',     inv.po_no||'',       'Status :', (inv.status||'').toUpperCase()]];
-  pairs.forEach(function(p,row) {
-    var yy=y+4.5+row*6;
-    doc.setFont('helvetica','bold'); doc.setFontSize(8);
-    doc.text(p[0], margin+2, yy); doc.text(p[2], margin+W/2+2, yy);
+  // ── META ──────────────────────────────────────────────────────────────
+  doc.setDrawColor(210,210,210); doc.setLineWidth(0.2);
+  doc.rect(M,y,W,12,'S');
+  doc.line(M+W/2,y,M+W/2,y+12); doc.line(M,y+6,M+W,y+6);
+  [['Invoice No:',inv.invoice_no||'','Date:',inv.invoice_date||''],
+   ['PO No:',inv.po_no||'','Status:',(inv.status||'').toUpperCase()]
+  ].forEach(function(p,row){
+    var yy=y+4.2+row*6;
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+    doc.text(p[0],M+2,yy); doc.text(p[2],M+W/2+2,yy);
     doc.setFont('helvetica','normal');
-    doc.text(p[1], margin+27, yy); doc.text(p[3], margin+W/2+20, yy);
+    doc.text(p[1],M+26,yy); doc.text(p[3],M+W/2+22,yy);
   });
   y+=14;
 
-  // BILL TO
-  doc.setFillColor(lightBlue[0],lightBlue[1],lightBlue[2]); doc.rect(margin,y,W,5.5,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(navy[0],navy[1],navy[2]);
-  doc.text('BILL TO', margin+2, y+3.9); y+=6;
+  // ── BILL TO ──────────────────────────────────────────────────────────
+  doc.setFillColor(LBLUE[0],LBLUE[1],LBLUE[2]); doc.rect(M,y,W,5.5,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]);
+  doc.text('BILL TO',M+2,y+3.9); y+=6;
   doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(0,0,0);
-  doc.text(inv.client_name||'', margin+2, y+3.5); y+=5;
+  doc.text(inv.client_name||'',M+2,y+3.5); y+=5;
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-  if (inv.client_address) {
-    doc.splitTextToSize(inv.client_address, W-4).slice(0,2).forEach(function(line){ doc.text(line,margin+2,y+3); y+=4; });
+  if(inv.client_address){
+    doc.splitTextToSize(inv.client_address,W-4).slice(0,2).forEach(function(l){doc.text(l,M+2,y+3);y+=4;});
   }
-  doc.text('GSTIN: '+(inv.client_gstin||'—'), margin+2, y+3); y+=7;
+  doc.text('GSTIN: '+(inv.client_gstin||'—'),M+2,y+3); y+=8;
 
-  // LINE ITEMS TABLE
-  var supply=inv.supply_type||'intra';
-  var tv_tot=0,cg_tot=0,sg_tot=0,ig_tot=0;
+  // ── LINE ITEMS ───────────────────────────────────────────────────────
+  var sup=inv.supply_type||'intra';
+  var tvT=0,cgT=0,sgT=0,igT=0;
   var body=items.map(function(it){
-    var tv=parseFloat(it.taxable_value||0),ca=parseFloat(it.cgst_amt||0),sa=parseFloat(it.sgst_amt||0),ia=parseFloat(it.igst_amt||0);
-    var lt=tv+ca+sa+ia; tv_tot+=tv;cg_tot+=ca;sg_tot+=sa;ig_tot+=ia;
-    return supply==='intra'
-      ? [String(it.sr_no),it.description||'',it.hsn_sac||'',n2s(parseFloat(it.qty||0)),it.unit||'',rs(it.rate),rs(tv),(it.cgst_rate||0)+'%',rs(ca),(it.sgst_rate||0)+'%',rs(sa),rs(lt)]
-      : [String(it.sr_no),it.description||'',it.hsn_sac||'',n2s(parseFloat(it.qty||0)),it.unit||'',rs(it.rate),rs(tv),(it.igst_rate||0)+'%',rs(ia),rs(lt)];
+    var tv=parseFloat(it.taxable_value||0),ca=parseFloat(it.cgst_amt||0);
+    var sa=parseFloat(it.sgst_amt||0),ia=parseFloat(it.igst_amt||0);
+    var lt=tv+ca+sa+ia; tvT+=tv;cgT+=ca;sgT+=sa;igT+=ia;
+    return sup==='intra'
+      ?[String(it.sr_no),it.description||'',it.hsn_sac||'',String(parseFloat(it.qty||0)),it.unit||'',rs(it.rate),rs(tv),pct(it.cgst_rate),rs(ca),pct(it.sgst_rate),rs(sa),rs(lt)]
+      :[String(it.sr_no),it.description||'',it.hsn_sac||'',String(parseFloat(it.qty||0)),it.unit||'',rs(it.rate),rs(tv),pct(it.igst_rate),rs(ia),rs(lt)];
   });
-  var grand=tv_tot+cg_tot+sg_tot+ig_tot, rounded=Math.round(grand), roff=rounded-grand;
-  // Totals row appended to body (same table, green bg)
-  if(supply==='intra') body.push(['','TOTAL','','','','',rs(tv_tot),'',rs(cg_tot),'',rs(sg_tot),rs(grand)]);
-  else                 body.push(['','TOTAL','','','','',rs(tv_tot),'',rs(ig_tot),rs(grand)]);
-  var lastRow=body.length-1;
+  var grand=tvT+cgT+sgT+igT, rounded=Math.round(grand), roff=rounded-grand;
+  // Totals appended as last body row
+  body.push(sup==='intra'
+    ?['','TOTAL','','','','',rs(tvT),'',rs(cgT),'',rs(sgT),rs(grand)]
+    :['','TOTAL','','','','',rs(tvT),'',rs(igT),rs(grand)]);
+  var LR=body.length-1;
 
-  // Column widths add up exactly to W=190
-  // intra (12 cols): 6+36+10+9+8+16+20+8+16+8+16+17 = 190
-  // inter (10 cols): 6+40+12+10+8+18+24+8+24+20     = 170 → tableWidth handles remainder
-  var colStyles = supply==='intra' ? {
-    0:{cellWidth:6,halign:'center'},  1:{cellWidth:36,halign:'left'},
-    2:{cellWidth:10,halign:'center'}, 3:{cellWidth:9,halign:'right'},
-    4:{cellWidth:8,halign:'center'},  5:{cellWidth:16,halign:'right'},
-    6:{cellWidth:20,halign:'right'},  7:{cellWidth:8,halign:'center'},
-    8:{cellWidth:16,halign:'right'},  9:{cellWidth:8,halign:'center'},
-    10:{cellWidth:16,halign:'right'}, 11:{cellWidth:17,halign:'right'}
-  } : {
-    0:{cellWidth:6,halign:'center'},  1:{cellWidth:40,halign:'left'},
-    2:{cellWidth:12,halign:'center'}, 3:{cellWidth:10,halign:'right'},
-    4:{cellWidth:8,halign:'center'},  5:{cellWidth:20,halign:'right'},
-    6:{cellWidth:26,halign:'right'},  7:{cellWidth:8,halign:'center'},
-    8:{cellWidth:24,halign:'right'},  9:{cellWidth:20,halign:'right'}
-  };
-  var head=supply==='intra'
-    ? [['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable Value','CGST%','CGST Amt','SGST%','SGST Amt','Total']]
-    : [['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable Value','IGST%','IGST Amt','Total']];
+  // Intra 12 cols: 6+34+10+10+8+17+22+8+17+8+17+13=190
+  // Inter 10 cols: 6+44+12+10+8+19+27+9+27+18=180 (tableWidth=W covers)
+  var HEAD, CS;
+  if(sup==='intra'){
+    HEAD=[['Sr','Description','HSN/
+SAC','Qty','Unit','Rate','Taxable
+Value','CGST
+%','CGST
+Amt','SGST
+%','SGST
+Amt','Total']];
+    CS={0:{cellWidth:6,halign:'center'},1:{cellWidth:34,halign:'left'},
+        2:{cellWidth:10,halign:'center'},3:{cellWidth:10,halign:'right'},
+        4:{cellWidth:8,halign:'center'},5:{cellWidth:17,halign:'right'},
+        6:{cellWidth:22,halign:'right'},7:{cellWidth:8,halign:'center'},
+        8:{cellWidth:17,halign:'right'},9:{cellWidth:8,halign:'center'},
+        10:{cellWidth:17,halign:'right'},11:{cellWidth:13,halign:'right'}};
+  } else {
+    HEAD=[['Sr','Description','HSN/
+SAC','Qty','Unit','Rate','Taxable
+Value','IGST
+%','IGST
+Amt','Total']];
+    CS={0:{cellWidth:6,halign:'center'},1:{cellWidth:44,halign:'left'},
+        2:{cellWidth:12,halign:'center'},3:{cellWidth:10,halign:'right'},
+        4:{cellWidth:8,halign:'center'},5:{cellWidth:19,halign:'right'},
+        6:{cellWidth:27,halign:'right'},7:{cellWidth:9,halign:'center'},
+        8:{cellWidth:27,halign:'right'},9:{cellWidth:18,halign:'right'}};
+  }
 
-  doc.autoTable({head:head, body:body, startY:y, margin:{left:margin,right:margin}, tableWidth:W,
-    styles:{fontSize:7.5, cellPadding:{top:2,right:2,bottom:2,left:2}, overflow:'linebreak'},
-    headStyles:{fillColor:navy, textColor:[255,255,255], fontStyle:'bold', fontSize:7.5, halign:'center'},
+  doc.autoTable({head:HEAD,body:body,startY:y,
+    margin:{left:M,right:M},tableWidth:W,
+    styles:{fontSize:7.5,cellPadding:{top:2.5,right:2,bottom:2.5,left:2},overflow:'linebreak',valign:'middle'},
+    headStyles:{fillColor:NAVY,textColor:[255,255,255],fontStyle:'bold',fontSize:7,halign:'center',valign:'middle',minCellHeight:10},
     alternateRowStyles:{fillColor:[247,251,255]},
-    columnStyles:colStyles,
-    didParseCell:function(data){
-      if(data.section==='body'&&data.row.index===lastRow){
-        data.cell.styles.fillColor=greenBg; data.cell.styles.fontStyle='bold';
-      }
+    columnStyles:CS,
+    didParseCell:function(d){
+      if(d.section==='body'&&d.row.index===LR){d.cell.styles.fillColor=GBKG;d.cell.styles.fontStyle='bold';}
     }
   });
   y=doc.lastAutoTable.finalY+2;
 
-  // SUMMARY TABLE — right-aligned block, 130mm wide
-  var sumX=margin+W-130;
+  // ── SUMMARY — full W, aligned with main table ─────────────────────
+  // Label col 110mm + value col 80mm = 190mm = W. Both start at M.
   doc.autoTable({
-    body:[['Round Off',(roff>=0?'+':'')+n2s(roff)],['TOTAL INVOICE VALUE',rsFmt(rounded)],['Amount in Words',numWords(rounded)+' Only']],
-    startY:y, margin:{left:sumX,right:margin}, tableWidth:130,
-    styles:{fontSize:8, cellPadding:3},
-    columnStyles:{0:{cellWidth:52,fontStyle:'bold',halign:'left'},1:{cellWidth:78,halign:'right'}},
-    didParseCell:function(data){
-      if(data.row.index===1){data.cell.styles.fillColor=greenBg;data.cell.styles.fontStyle='bold';data.cell.styles.fontSize=9;}
+    body:[['Round Off',(roff>=0?'+':'')+rs(roff)],['TOTAL INVOICE VALUE',rsFmt(rounded)],['Amount in Words',numWords(rounded)+' Only']],
+    startY:y, margin:{left:M,right:M}, tableWidth:W,
+    styles:{fontSize:8,cellPadding:{top:3,right:4,bottom:3,left:4}},
+    columnStyles:{0:{cellWidth:110,fontStyle:'bold',halign:'left'},1:{cellWidth:80,halign:'right'}},
+    didParseCell:function(d){
+      if(d.row.index===1){d.cell.styles.fillColor=GBKG;d.cell.styles.fontStyle='bold';d.cell.styles.fontSize=9.5;}
     }
   });
-  y=doc.lastAutoTable.finalY+4;
+  y=doc.lastAutoTable.finalY+3;
 
-  // BANK + SIGNATURE — proper table, side by side
+  // ── GST BREAKUP ───────────────────────────────────────────────────
+  var gRows=items.map(function(it){
+    var tv=parseFloat(it.taxable_value||0),ca=parseFloat(it.cgst_amt||0),sa=parseFloat(it.sgst_amt||0),ia=parseFloat(it.igst_amt||0);
+    return [it.hsn_sac||'',rs(tv),rs(ca),rs(sa),rs(ia),rs(ca+sa+ia)];
+  });
+  gRows.push(['Total',rs(tvT),rs(cgT),rs(sgT),rs(igT),rs(cgT+sgT+igT)]);
+  doc.autoTable({
+    head:[['HSN/SAC','Taxable','CGST','SGST','IGST','Total Tax']],
+    body:gRows, startY:y, margin:{left:M,right:M}, tableWidth:W,
+    styles:{fontSize:7.5,cellPadding:2.5,halign:'right'},
+    headStyles:{fillColor:[240,244,248],textColor:NAVY,fontStyle:'bold',fontSize:7.5,halign:'center'},
+    columnStyles:{0:{cellWidth:22,halign:'center'},1:{cellWidth:34},2:{cellWidth:34},3:{cellWidth:34},4:{cellWidth:34},5:{cellWidth:32}},
+    didParseCell:function(d){
+      if(d.section==='body'&&d.row.index===gRows.length-1){d.cell.styles.fillColor=GBKG;d.cell.styles.fontStyle='bold';}
+    }
+  });
+  y=doc.lastAutoTable.finalY+3;
+
+  // ── BANK + SIGNATURE ─────────────────────────────────────────────
+  // 4 cols: label(24)+value(91)+sig(50)+empty(25)=190=W
   doc.autoTable({
     body:[
-      ['Bank',       cfg.bank_name||'—',    'For '+(cfg.company_name||''), ''],
-      ['Account No', cfg.account_no||'—',   '', ''],
-      ['IFSC',       cfg.ifsc||'—',         '', ''],
-      ['Branch',     (cfg.branch||'—')+'  '+cfg.account_type||'', cfg.signatory_name||'', ''],
-      ['Beneficiary',cfg.beneficiary_name||cfg.signatory_name||'—', cfg.signatory_title||'', '']
+      ['Bank',        cfg.bank_name||'—',  'For '+(cfg.company_name||''),''],
+      ['Account No',  cfg.account_no||'—', '',                          ''],
+      ['IFSC',        cfg.ifsc||'—',       '',                          ''],
+      ['Branch',      cfg.branch||'—',     '',                          ''],
+      ['A/C Type',    cfg.account_type||'—',cfg.signatory_name||'',     ''],
+      ['Beneficiary', cfg.beneficiary_name||cfg.signatory_name||'—', cfg.signatory_title||'','']
     ],
-    startY:y, margin:{left:margin,right:margin}, tableWidth:W,
-    styles:{fontSize:7.5, cellPadding:3},
+    startY:y, margin:{left:M,right:M}, tableWidth:W,
+    styles:{fontSize:7.5,cellPadding:3},
     columnStyles:{
-      0:{cellWidth:25,fontStyle:'bold',halign:'left'},
-      1:{cellWidth:85,halign:'left'},
-      2:{cellWidth:45,halign:'center',fontStyle:'bold'},
-      3:{cellWidth:35,halign:'center'}
+      0:{cellWidth:24,fontStyle:'bold',halign:'left'},
+      1:{cellWidth:91,halign:'left'},
+      2:{cellWidth:50,halign:'center'},
+      3:{cellWidth:25,halign:'center'}
     },
-    didParseCell:function(data){
-      if(data.column.index>=2) data.cell.styles.fillColor=[245,248,252];
-      if(data.row.index===0&&data.column.index===2) data.cell.styles.fontStyle='normal';
-      if(data.row.index===3&&data.column.index===2) { data.cell.styles.fontStyle='bold'; }
-      if(data.row.index===4&&data.column.index===2) {
-        data.cell.styles.fontStyle='normal';
-        data.cell.styles.textColor=[100,100,100];
-      }
+    didParseCell:function(d){
+      if(d.column.index>=2) d.cell.styles.fillColor=[245,248,252];
+      if(d.row.index===0&&d.column.index===2){d.cell.styles.fontStyle='italic';d.cell.styles.fontSize=8;}
+      if(d.row.index===4&&d.column.index===2){d.cell.styles.fontStyle='bold';d.cell.styles.fontSize=9;}
+      if(d.row.index===5&&d.column.index===2){d.cell.styles.textColor=[80,80,80];}
     }
   });
 
-  doc.save('Invoice_'+(inv.invoice_no||'').replace(/\//g,'_')+'.pdf');
+  y=doc.lastAutoTable.finalY+3;
+  doc.setFont('helvetica','italic'); doc.setFontSize(7); doc.setTextColor(150,150,150);
+  doc.text('This is a computer-generated invoice.',M+W/2,y,{align:'center'});
+
+  doc.save('Invoice_'+(inv.invoice_no||'').replace(/\/g,'_').replace(/\//g,'_')+'.pdf');
   toast('PDF downloaded!');
+}
+
 }
 
 // ════════════════════════════════════════════════════════════════════

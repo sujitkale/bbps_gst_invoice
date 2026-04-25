@@ -99,8 +99,8 @@ tr:last-child td{border-bottom:none}
 .del-confirm{display:none;background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:14px 16px;margin:0 16px 16px}
 .del-confirm.open{display:block}.del-confirm p{font-size:.83rem;color:#7F1D1D;margin-bottom:10px}
 .del-confirm .da{display:flex;gap:8px}
-.toast{position:fixed;bottom:calc(var(--bot-h)+12px);right:16px;z-index:9999;background:var(--navy);color:#fff;padding:11px 16px;border-radius:10px;font-size:.83rem;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.25);transform:translateY(100px);transition:transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;max-width:320px}
-.toast.show{transform:translateY(0)}.toast.success{border-left:4px solid var(--green)}.toast.error{border-left:4px solid #DC2626}.toast.info{border-left:4px solid #2563EB}
+.toast{position:fixed;bottom:calc(var(--bot-h)+12px);right:16px;z-index:9999;background:var(--navy);color:#fff;padding:11px 16px;border-radius:10px;font-size:.83rem;font-weight:500;display:none;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.25);pointer-events:none;max-width:320px}
+.toast.show{display:flex}.toast.success{border-left:4px solid var(--green)}.toast.error{border-left:4px solid #DC2626}.toast.info{border-left:4px solid #2563EB}
 .stog{display:flex;background:var(--surface);border-radius:8px;padding:3px;border:1px solid var(--border);width:fit-content}
 .sopt{padding:7px 14px;border-radius:6px;border:none;cursor:pointer;font-family:var(--font);font-size:.79rem;font-weight:600;color:var(--muted);background:none;transition:all .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .sopt.active{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(0,0,0,.1)}
@@ -118,7 +118,7 @@ tr:last-child td{border-bottom:none}
 .fy-btn{padding:5px 13px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-family:var(--font);font-size:.75rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;-webkit-tap-highlight-color:transparent}
 .fy-btn:hover{border-color:var(--saffron);color:var(--saffron)}
 .fy-btn.active{background:var(--saffron);color:#fff;border-color:var(--saffron)}
-@media(max-width:768px){.top-tabs{display:none}.bot-nav{display:block}.toast{bottom:calc(var(--bot-h)+10px);left:16px;right:16px;max-width:none}.dash-grid{grid-template-columns:1fr!important}.inv-bottom{grid-template-columns:1fr!important}.data-grid{grid-template-columns:1fr!important}.sgrid{grid-template-columns:1fr 1fr}.cb{padding:14px}.ch{padding:14px 14px 10px}}
+@media(max-width:768px){.top-tabs{display:none}.bot-nav{display:block}.toast.show{bottom:calc(var(--bot-h)+10px);left:16px;right:16px;max-width:none}.dash-grid{grid-template-columns:1fr!important}.inv-bottom{grid-template-columns:1fr!important}.data-grid{grid-template-columns:1fr!important}.sgrid{grid-template-columns:1fr 1fr}.cb{padding:14px}.ch{padding:14px 14px 10px}}
 @media(max-width:480px){.sgrid{grid-template-columns:1fr}.brand-chip{display:none}}
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
@@ -972,140 +972,285 @@ async function exportExcelData(id){ exportExcel(id); }
 function buildPDF(inv, items, cfg) {
   var {jsPDF}=window.jspdf;
   var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+
+  // Page geometry
   var W=190, M=10, y=10;
-  var NAVY=[15,23,42], HBLUE=[189,215,238], GBKG=[226,239,218], LBLUE=[233,239,247];
 
-  // Use Rs. prefix — jsPDF Helvetica lacks U+20B9 rupee glyph (renders as superscript-1)
-  function rs(n) { n=parseFloat(n||0); return 'Rs.'+(n%1===0?fmt(n):n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})); }
-  function rsFmt(n) { return 'Rs.'+fmt(Math.round(n||0)); }
-  function pct(n) { return parseFloat(n||0)+'%'; }
+  // ── 3 font sizes only ────────────────────────────────────────────
+  var SZ = { title:13, header:9, body:8 };
 
-  // HEADER BLOCK
-  [[9,'TAX INVOICE',15,true,NAVY],[7,cfg.company_name||'',10,true,[0,0,0]],
-   [5.5,'GSTIN: '+(cfg.gstin||'')+'   Ph: '+(cfg.contact||'')+'   '+(cfg.email||''),7.5,false,[0,0,0]],
-   [5.5,cfg.address||'',7.5,false,[0,0,0]]
-  ].forEach(function(row){
-    doc.setFillColor(HBLUE[0],HBLUE[1],HBLUE[2]); doc.rect(M,y,W,row[0],'F');
-    doc.setFont('helvetica',row[3]?'bold':'normal'); doc.setFontSize(row[2]);
-    doc.setTextColor(row[4][0],row[4][1],row[4][2]);
-    doc.text(doc.splitTextToSize(row[1],W-4)[0]||'', M+W/2, y+row[0]*0.67, {align:'center'});
-    y+=row[0]+1;
+  // ── Helpers ───────────────────────────────────────────────────────
+  // Rs. prefix — jsPDF Helvetica lacks U+20B9 rupee glyph
+  function rs(n){
+    n=parseFloat(n||0);
+    return 'Rs.'+(n%1===0 ? fmt(n) : n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  }
+  function rsFmt(n){ return 'Rs.'+fmt(Math.round(n||0)); }
+  function pct(n){ return parseFloat(n||0)+'%'; }
+
+  function setT(style,size){ doc.setFont('helvetica',style); doc.setFontSize(size); }
+  function ink(r,g,b){ doc.setTextColor(r,g,b); }
+  function black(){ ink(0,0,0); }
+  function grey(){ ink(100,100,100); }
+
+  // Thin border colour for all tables
+  doc.setDrawColor(180,180,180);
+  doc.setLineWidth(0.2);
+
+  // ── HEADER ────────────────────────────────────────────────────────
+  // Outer border around entire header block
+  var hdrH = 32;
+  doc.rect(M, y, W, hdrH, 'S');
+
+  // Horizontal rule below title
+  setT('bold', SZ.title); black();
+  doc.text('TAX INVOICE', M+W/2, y+7, {align:'center'});
+  doc.line(M, y+10, M+W, y+10);
+
+  setT('bold', SZ.header); black();
+  doc.text(cfg.company_name||'', M+W/2, y+16, {align:'center'});
+
+  setT('normal', SZ.body); grey();
+  var gstin_line = 'GSTIN: '+(cfg.gstin||'')+'    Ph: '+(cfg.contact||'')+'    '+(cfg.email||'');
+  doc.text(doc.splitTextToSize(gstin_line, W-6)[0]||'', M+W/2, y+22, {align:'center'});
+  doc.text(doc.splitTextToSize(cfg.address||'', W-6)[0]||'', M+W/2, y+27, {align:'center'});
+  y += hdrH + 4;
+
+  // ── INVOICE META ──────────────────────────────────────────────────
+  // 2×2 grid inside a single bordered box
+  var metaH = 14;
+  doc.rect(M, y, W, metaH, 'S');
+  doc.line(M+W/2, y, M+W/2, y+metaH);   // vertical divider
+  doc.line(M, y+metaH/2, M+W, y+metaH/2); // horizontal divider
+
+  [
+    ['Invoice No', inv.invoice_no||'',  'Date',   inv.invoice_date||''],
+    ['PO No',      inv.po_no||'—',       'Status', (inv.status||'').toUpperCase()]
+  ].forEach(function(p, row){
+    var yy = y + 5 + row*(metaH/2);
+    setT('bold',SZ.body); black();
+    doc.text(p[0]+':', M+3, yy);
+    doc.text(p[2]+':', M+W/2+3, yy);
+    setT('normal',SZ.body); black();
+    doc.text(p[1], M+28, yy);
+    doc.text(p[3], M+W/2+22, yy);
   });
-  y+=2;
+  y += metaH + 4;
 
-  // META
-  doc.setDrawColor(210,210,210); doc.setLineWidth(0.2);
-  doc.rect(M,y,W,12,'S'); doc.line(M+W/2,y,M+W/2,y+12); doc.line(M,y+6,M+W,y+6);
-  [['Invoice No:',inv.invoice_no||'','Date:',inv.invoice_date||''],
-   ['PO No:',inv.po_no||'','Status:',(inv.status||'').toUpperCase()]
-  ].forEach(function(p,row){
-    var yy=y+4.2+row*6;
-    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(0,0,0);
-    doc.text(p[0],M+2,yy); doc.text(p[2],M+W/2+2,yy);
-    doc.setFont('helvetica','normal');
-    doc.text(p[1],M+26,yy); doc.text(p[3],M+W/2+22,yy);
-  });
-  y+=14;
+  // ── BILL TO ───────────────────────────────────────────────────────
+  var billH = 6 + (inv.client_address ? Math.min(2,doc.splitTextToSize(inv.client_address,W-6).length)*4.5 : 0) + 5;
+  doc.rect(M, y, W, billH+6, 'S');
 
-  // BILL TO
-  doc.setFillColor(LBLUE[0],LBLUE[1],LBLUE[2]); doc.rect(M,y,W,5.5,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]);
-  doc.text('BILL TO',M+2,y+3.9); y+=6;
-  doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(0,0,0);
-  doc.text(inv.client_name||'',M+2,y+3.5); y+=5;
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  setT('bold', SZ.body); grey();
+  doc.text('BILL TO', M+3, y+5);
+  setT('bold', SZ.header); black();
+  doc.text(inv.client_name||'', M+3, y+11);
+
+  var billY = y+16;
+  setT('normal', SZ.body); grey();
   if(inv.client_address){
-    doc.splitTextToSize(inv.client_address,W-4).slice(0,2).forEach(function(l){doc.text(l,M+2,y+3);y+=4;});
+    doc.splitTextToSize(inv.client_address, W-6).slice(0,2).forEach(function(l){
+      doc.text(l, M+3, billY); billY+=4.5;
+    });
   }
-  doc.text('GSTIN: '+(inv.client_gstin||''),M+2,y+3); y+=8;
+  if(inv.client_gstin) doc.text('GSTIN: '+inv.client_gstin, M+3, billY);
+  y += billH + 10;
 
-  // LINE ITEMS TABLE
-  var sup=inv.supply_type||'intra', tvT=0,cgT=0,sgT=0,igT=0;
-  var body=items.map(function(it){
-    var tv=parseFloat(it.taxable_value||0),ca=parseFloat(it.cgst_amt||0),sa=parseFloat(it.sgst_amt||0),ia=parseFloat(it.igst_amt||0);
-    var lt=tv+ca+sa+ia; tvT+=tv;cgT+=ca;sgT+=sa;igT+=ia;
-    return sup==='intra'
-      ?[String(it.sr_no),it.description||'',it.hsn_sac||'',String(parseFloat(it.qty||0)),it.unit||'',rs(it.rate),rs(tv),pct(it.cgst_rate),rs(ca),pct(it.sgst_rate),rs(sa),rs(lt)]
-      :[String(it.sr_no),it.description||'',it.hsn_sac||'',String(parseFloat(it.qty||0)),it.unit||'',rs(it.rate),rs(tv),pct(it.igst_rate),rs(ia),rs(lt)];
-  });
-  var grand=tvT+cgT+sgT+igT, rounded=Math.round(grand), roff=rounded-grand;
-  body.push(sup==='intra'
-    ?['','TOTAL','','','','',rs(tvT),'',rs(cgT),'',rs(sgT),rs(grand)]
-    :['','TOTAL','','','','',rs(tvT),'',rs(igT),rs(grand)]);
-  var LR=body.length-1;
+  // ── LINE ITEMS TABLE ─────────────────────────────────────────────
+  // Spans the full content width W. Column widths MUST sum exactly to W=190.
+  var sup = inv.supply_type||'intra';
+  var tvT=0, cgT=0, sgT=0, igT=0;
 
-  // Column widths: intra 12 cols sum=190, inter 10 cols sum=190
-  var HEAD, CS;
-  if(sup==='intra'){
-    HEAD=[['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable Value','CGST%','CGST Amt','SGST%','SGST Amt','Total']];
-    CS={0:{cellWidth:6,halign:'center'},1:{cellWidth:34,halign:'left'},2:{cellWidth:10,halign:'center'},
-        3:{cellWidth:10,halign:'right'},4:{cellWidth:8,halign:'center'},5:{cellWidth:17,halign:'right'},
-        6:{cellWidth:22,halign:'right'},7:{cellWidth:8,halign:'center'},8:{cellWidth:17,halign:'right'},
-        9:{cellWidth:8,halign:'center'},10:{cellWidth:17,halign:'right'},11:{cellWidth:13,halign:'right'}};
-  } else {
-    HEAD=[['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable Value','IGST%','IGST Amt','Total']];
-    CS={0:{cellWidth:6,halign:'center'},1:{cellWidth:44,halign:'left'},2:{cellWidth:12,halign:'center'},
-        3:{cellWidth:10,halign:'right'},4:{cellWidth:8,halign:'center'},5:{cellWidth:19,halign:'right'},
-        6:{cellWidth:27,halign:'right'},7:{cellWidth:9,halign:'center'},8:{cellWidth:27,halign:'right'},
-        9:{cellWidth:28,halign:'right'}};
-  }
-  doc.autoTable({head:HEAD,body:body,startY:y,margin:{left:M,right:M},tableWidth:W,
-    styles:{fontSize:7.5,cellPadding:{top:2.5,right:2,bottom:2.5,left:2},overflow:'linebreak',valign:'middle'},
-    headStyles:{fillColor:NAVY,textColor:[255,255,255],fontStyle:'bold',fontSize:7,halign:'center',valign:'middle',minCellHeight:10},
-    alternateRowStyles:{fillColor:[247,251,255]},columnStyles:CS,
-    didParseCell:function(d){if(d.section==='body'&&d.row.index===LR){d.cell.styles.fillColor=GBKG;d.cell.styles.fontStyle='bold';}}
-  });
-  y=doc.lastAutoTable.finalY+2;
-
-  // SUMMARY TABLE — full W, aligned with line items table (same margin M)
-  // Label 110mm + Value 80mm = 190mm = W
-  doc.autoTable({
-    body:[['Round Off',(roff>=0?'+':'')+rs(roff)],['TOTAL INVOICE VALUE',rsFmt(rounded)],['Amount in Words',numWords(rounded)+' Only']],
-    startY:y,margin:{left:M,right:M},tableWidth:W,
-    styles:{fontSize:8,cellPadding:{top:3,right:4,bottom:3,left:4}},
-    columnStyles:{0:{cellWidth:110,fontStyle:'bold',halign:'left'},1:{cellWidth:80,halign:'right'}},
-    didParseCell:function(d){if(d.row.index===1){d.cell.styles.fillColor=GBKG;d.cell.styles.fontStyle='bold';d.cell.styles.fontSize=9.5;}}
-  });
-  y=doc.lastAutoTable.finalY+3;
-
-  // GST BREAKUP TABLE
-  var gRows=items.map(function(it){
-    var tv=parseFloat(it.taxable_value||0),ca=parseFloat(it.cgst_amt||0),sa=parseFloat(it.sgst_amt||0),ia=parseFloat(it.igst_amt||0);
-    return [it.hsn_sac||'',rs(tv),rs(ca),rs(sa),rs(ia),rs(ca+sa+ia)];
-  });
-  gRows.push(['Total',rs(tvT),rs(cgT),rs(sgT),rs(igT),rs(cgT+sgT+igT)]);
-  doc.autoTable({head:[['HSN/SAC','Taxable','CGST','SGST','IGST','Total Tax']],body:gRows,
-    startY:y,margin:{left:M,right:M},tableWidth:W,
-    styles:{fontSize:7.5,cellPadding:2.5,halign:'right'},
-    headStyles:{fillColor:[240,244,248],textColor:NAVY,fontStyle:'bold',fontSize:7.5,halign:'center'},
-    columnStyles:{0:{cellWidth:22,halign:'center'},1:{cellWidth:34},2:{cellWidth:34},3:{cellWidth:34},4:{cellWidth:34},5:{cellWidth:32}},
-    didParseCell:function(d){if(d.section==='body'&&d.row.index===gRows.length-1){d.cell.styles.fillColor=GBKG;d.cell.styles.fontStyle='bold';}}
-  });
-  y=doc.lastAutoTable.finalY+3;
-
-  // BANK + SIGNATURE TABLE (4 cols: 24+91+50+25=190)
-  doc.autoTable({
-    body:[
-      ['Bank',       cfg.bank_name||'',      'For '+(cfg.company_name||''),''],
-      ['Account No', cfg.account_no||'',     '',                           ''],
-      ['IFSC',       cfg.ifsc||'',           '',                           ''],
-      ['Branch',     cfg.branch||'',         '',                           ''],
-      ['A/C Type',   cfg.account_type||'',   cfg.signatory_name||'',       ''],
-      ['Beneficiary',cfg.beneficiary_name||'',cfg.signatory_title||'',     '']
-    ],
-    startY:y,margin:{left:M,right:M},tableWidth:W,
-    styles:{fontSize:7.5,cellPadding:3},
-    columnStyles:{0:{cellWidth:24,fontStyle:'bold',halign:'left'},1:{cellWidth:91,halign:'left'},2:{cellWidth:50,halign:'center'},3:{cellWidth:25,halign:'center'}},
-    didParseCell:function(d){
-      if(d.column.index>=2) d.cell.styles.fillColor=[245,248,252];
-      if(d.row.index===0&&d.column.index===2){d.cell.styles.fontStyle='italic';d.cell.styles.fontSize=8;}
-      if(d.row.index===4&&d.column.index===2){d.cell.styles.fontStyle='bold';d.cell.styles.fontSize=9;}
-      if(d.row.index===5&&d.column.index===2) d.cell.styles.textColor=[80,80,80];
+  var body = items.map(function(it){
+    var tv=parseFloat(it.taxable_value||0), ca=parseFloat(it.cgst_amt||0);
+    var sa=parseFloat(it.sgst_amt||0),      ia=parseFloat(it.igst_amt||0);
+    var lt=tv+ca+sa+ia;
+    tvT+=tv; cgT+=ca; sgT+=sa; igT+=ia;
+    if(sup==='intra'){
+      return [String(it.sr_no), it.description||'', it.hsn_sac||'',
+              String(parseFloat(it.qty||0)), it.unit||'',
+              rs(it.rate), rs(tv),
+              pct(it.cgst_rate), rs(ca),
+              pct(it.sgst_rate), rs(sa),
+              rs(lt)];
+    } else {
+      return [String(it.sr_no), it.description||'', it.hsn_sac||'',
+              String(parseFloat(it.qty||0)), it.unit||'',
+              rs(it.rate), rs(tv),
+              pct(it.igst_rate), rs(ia),
+              rs(lt)];
     }
   });
-  y=doc.lastAutoTable.finalY+3;
-  doc.setFont('helvetica','italic'); doc.setFontSize(7); doc.setTextColor(150,150,150);
-  doc.text('This is a computer-generated invoice.',M+W/2,y,{align:'center'});
+
+  var grand=tvT+cgT+sgT+igT, rounded=Math.round(grand), roff=rounded-grand;
+
+  // Sub-total row
+  if(sup==='intra'){
+    body.push(['','Sub-total','','','','', rs(tvT),'',rs(cgT),'',rs(sgT), rs(grand)]);
+  } else {
+    body.push(['','Sub-total','','','','', rs(tvT),'',rs(igT), rs(grand)]);
+  }
+  var LR = body.length-1;
+
+  // intra: 6+38+10+10+8+16+22+8+16+8+16+12 = 190 (12 cols)
+  // inter: 6+48+12+10+8+18+26+8+26+18      = 180 → use tableWidth:W to fill
+  var HEAD, CS;
+  if(sup==='intra'){
+    HEAD=[['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable','CGST%','CGST Amt','SGST%','SGST Amt','Total']];
+    CS={
+      0:{cellWidth:6,  halign:'center'},
+      1:{cellWidth:38, halign:'left'},
+      2:{cellWidth:10, halign:'center'},
+      3:{cellWidth:10, halign:'right'},
+      4:{cellWidth:8,  halign:'center'},
+      5:{cellWidth:16, halign:'right'},
+      6:{cellWidth:22, halign:'right'},
+      7:{cellWidth:8,  halign:'center'},
+      8:{cellWidth:16, halign:'right'},
+      9:{cellWidth:8,  halign:'center'},
+      10:{cellWidth:16,halign:'right'},
+      11:{cellWidth:12,halign:'right'}
+    };
+  } else {
+    HEAD=[['Sr','Description','HSN/SAC','Qty','Unit','Rate','Taxable','IGST%','IGST Amt','Total']];
+    CS={
+      0:{cellWidth:6,  halign:'center'},
+      1:{cellWidth:52, halign:'left'},
+      2:{cellWidth:12, halign:'center'},
+      3:{cellWidth:10, halign:'right'},
+      4:{cellWidth:8,  halign:'center'},
+      5:{cellWidth:18, halign:'right'},
+      6:{cellWidth:30, halign:'right'},
+      7:{cellWidth:9,  halign:'center'},
+      8:{cellWidth:27, halign:'right'},
+      9:{cellWidth:18, halign:'right'}
+    };
+  }
+
+  doc.autoTable({
+    head: HEAD, body: body,
+    startY: y,
+    margin: {left:M, right:M},
+    tableWidth: W,
+    styles: {
+      fontSize: SZ.body,
+      cellPadding: {top:2.5,right:2,bottom:2.5,left:2},
+      overflow: 'linebreak',
+      valign: 'middle',
+      lineColor: [180,180,180],
+      lineWidth: 0.2,
+      textColor: [0,0,0],
+      fillColor: [255,255,255]
+    },
+    headStyles: {
+      fillColor: [255,255,255],
+      textColor: [0,0,0],
+      fontStyle: 'bold',
+      fontSize: SZ.body,
+      halign: 'center',
+      valign: 'middle',
+      lineColor: [0,0,0],
+      lineWidth: 0.3
+    },
+    alternateRowStyles: {fillColor:[255,255,255]},
+    columnStyles: CS,
+    didParseCell: function(d){
+      if(d.section==='body' && d.row.index===LR){
+        d.cell.styles.fontStyle='bold';
+        d.cell.styles.lineWidth=0.3;
+      }
+    }
+  });
+  y = doc.lastAutoTable.finalY + 4;
+
+  // ── TOTALS BLOCK ──────────────────────────────────────────────────
+  // Right-aligned 2-column table. Full W, label left, value right.
+  doc.autoTable({
+    body: [
+      ['Round Off',            (roff>=0?'+':'')+rs(roff)],
+      ['Total Invoice Value',  rsFmt(rounded)],
+      ['Amount in Words',      numWords(rounded)+' Only']
+    ],
+    startY: y,
+    margin: {left:M, right:M},
+    tableWidth: W,
+    styles: {
+      fontSize: SZ.body,
+      cellPadding: {top:3,right:4,bottom:3,left:4},
+      lineColor: [180,180,180],
+      lineWidth: 0.2,
+      fillColor: [255,255,255],
+      textColor: [0,0,0]
+    },
+    columnStyles: {
+      0: {cellWidth:110, fontStyle:'bold', halign:'left'},
+      1: {cellWidth:80,  halign:'right'}
+    },
+    didParseCell: function(d){
+      if(d.row.index===1){
+        d.cell.styles.fontStyle='bold';
+        d.cell.styles.fontSize=SZ.header;
+        d.cell.styles.lineWidth=0.4;
+      }
+    }
+  });
+  y = doc.lastAutoTable.finalY + 5;
+
+  // ── BANK DETAILS + AUTHORISATION ─────────────────────────────────
+  // Two side-by-side boxes: bank left, signature right
+  // Bank box: col 0+1 = 115mm; Sig box: col 2+3 = 75mm; total=190
+  doc.autoTable({
+    body:[
+      ['Bank',         cfg.bank_name||'',         'For '+(cfg.company_name||''), ''],
+      ['Account No',   cfg.account_no||'',         '',   ''],
+      ['IFSC',         cfg.ifsc||'',               '',   ''],
+      ['Branch',       cfg.branch||'',             '',   ''],
+      ['Account Type', cfg.account_type||'',       cfg.signatory_name||'',  ''],
+      ['Beneficiary',  cfg.beneficiary_name||'',   cfg.signatory_title||'', '']
+    ],
+    startY: y,
+    margin: {left:M, right:M},
+    tableWidth: W,
+    styles:{
+      fontSize: SZ.body,
+      cellPadding: 3,
+      lineColor: [180,180,180],
+      lineWidth: 0.2,
+      fillColor: [255,255,255],
+      textColor: [0,0,0]
+    },
+    columnStyles:{
+      0:{cellWidth:26, fontStyle:'bold', halign:'left'},
+      1:{cellWidth:89, halign:'left'},
+      2:{cellWidth:48, halign:'center', fontStyle:'normal'},
+      3:{cellWidth:27, halign:'center'}
+    },
+    didParseCell:function(d){
+      // Vertical divider between bank and sig: thicker left border on col 2
+      if(d.column.index===2){
+        d.cell.styles.lineWidth=0.2;
+      }
+      // "For CompanyName" — grey italic
+      if(d.row.index===0 && d.column.index===2){
+        d.cell.styles.textColor=[100,100,100];
+        d.cell.styles.fontStyle='italic';
+      }
+      // Signatory name — bold, larger
+      if(d.row.index===4 && d.column.index===2){
+        d.cell.styles.fontStyle='bold';
+        d.cell.styles.fontSize=SZ.header;
+      }
+      // Signatory title — grey
+      if(d.row.index===5 && d.column.index===2){
+        d.cell.styles.textColor=[100,100,100];
+      }
+    }
+  });
+
+  // Footer note
+  y = doc.lastAutoTable.finalY + 4;
+  setT('italic', SZ.body-1); grey();
+  doc.text('This is a computer-generated invoice.', M+W/2, y, {align:'center'});
 
   doc.save('Invoice_'+(inv.invoice_no||'').replace(/[^A-Za-z0-9-]/g,'_')+'.pdf');
   toast('PDF downloaded!');
